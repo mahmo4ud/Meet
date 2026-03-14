@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>اجتماع صوتي سريع</title>
+  <meta name="description" content="أنشئ غرفة اجتماع صوتية في ثانية وشارك الرابط مع فريقك. بدون تسجيل دخول." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- ═══════════════════════════════════════════════
+       الصفحة الرئيسية
+  ═══════════════════════════════════════════════ -->
+  <div id="home-page" class="page">
+    <div class="hero-bg"></div>
+
+    <header class="home-header">
+      <div class="logo">
+        <span class="logo-icon">🎙️</span>
+        <span class="logo-text">صوتي</span>
+      </div>
+    </header>
+
+    <main class="home-main">
+      <div class="hero-card">
+        <div class="hero-badge">✨ بدون تسجيل دخول</div>
+        <h1 class="hero-title">اجتماعات صوتية<br /><span class="gradient-text">فورية ومجانية</span></h1>
+        <p class="hero-subtitle">أنشئ غرفة في ثانية، شارك الرابط، وابدأ الحديث فوراً مع فريقك.</p>
+
+        <div class="action-group">
+          <button id="create-room-btn" class="btn btn-primary btn-lg">
+            <span class="btn-icon">➕</span>
+            إنشاء غرفة جديدة
+          </button>
+
+          <div class="divider-or"><span>أو</span></div>
+
+          <div class="join-group">
+            <input id="join-link-input" type="text" class="input-field" placeholder="الصق رابط الغرفة هنا..."
+              autocomplete="off" />
+            <button id="join-btn" class="btn btn-secondary">
+              <span class="btn-icon">🚀</span>
+              انضمام
+            </button>
+          </div>
+        </div>
+
+        <div class="features-row">
+          <div class="feature-chip">🔒 خصوصي</div>
+          <div class="feature-chip">⚡ فوري</div>
+          <div class="feature-chip">🖥️ مشاركة الشاشة</div>
+          <div class="feature-chip">👥 حتى 6 أشخاص</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       صفحة الغرفة
+  ═══════════════════════════════════════════════ -->
+  <div id="room-page" class="page hidden">
+    <div class="room-bg"></div>
+
+    <!-- شريط العلوي -->
+    <header class="room-header">
+      <div class="room-header-right">
+        <span class="logo-icon">🎙️</span>
+        <div class="room-info">
+          <span class="room-label">الغرفة</span>
+          <span id="room-id-display" class="room-id"></span>
+        </div>
+      </div>
+
+      <div class="room-header-actions">
+        <button id="copy-link-btn" class="btn btn-ghost btn-sm">
+          <span>📋</span> نسخ الرابط
+        </button>
+        <button id="leave-btn" class="btn btn-danger btn-sm">
+          <span>🚪</span> خروج
+        </button>
+      </div>
+    </header>
+
+    <!-- المحتوى الرئيسي للغرفة -->
+    <main class="room-main">
+
+      <!-- ─── منطقة الفيديو / الشاشة المشتركة ─── -->
+      <div id="screen-area" class="screen-area hidden">
+        <div class="screen-wrapper">
+          <div class="screen-label">
+            <span id="screen-sharer-name"></span>
+            <span class="screen-badge">يشارك الشاشة</span>
+          </div>
+          <button id="fullscreen-btn" class="fullscreen-btn" title="ملء الشاشة">
+            <span id="fullscreen-icon">⛶</span>
+          </button>
+          <video id="remote-screen-video" autoplay playsinline class="screen-video"></video>
+        </div>
+      </div>
+
+      <!-- ─── لوحة التحكم والمشاركون ─── -->
+      <div class="room-content">
+
+        <!-- المشاركون -->
+        <section class="participants-section">
+          <h2 class="section-title">
+            <span>👥</span>
+            المشاركون
+            <span id="participant-count" class="count-badge">0</span>
+          </h2>
+          <div id="participants-list" class="participants-grid">
+            <!-- يتم ملؤها ديناميكياً -->
+          </div>
+        </section>
+
+        <!-- أزرار التحكم -->
+        <section class="controls-section">
+          <div class="controls-bar">
+
+            <button id="mute-btn" class="control-btn" data-muted="false">
+              <span class="control-icon">🎙️</span>
+              <span class="control-label">كتم الصوت</span>
+            </button>
+
+            <button id="screen-btn" class="control-btn" data-sharing="false">
+              <span class="control-icon">🖥️</span>
+              <span class="control-label">مشاركة الشاشة</span>
+            </button>
+
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- عناصر الصوت المخفية للمشاركين البعيدين -->
+    <div id="audio-container" style="display:none;"></div>
+  </div>
+
+  <!-- ─── نافذة الإشعارات ─── -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- ─── نافذة الخطأ ─── -->
+  <div id="error-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-icon">⚠️</div>
+      <h3 id="error-title" class="modal-title">خطأ</h3>
+      <p id="error-message" class="modal-message"></p>
+      <button id="error-close-btn" class="btn btn-primary">حسناً</button>
+    </div>
+  </div>
+
+  <!-- ─── إخفاء فوري للصفحة الصحيحة قبل تحميل JS ─── -->
+  <!-- يُشغَّل هذا النص فوراً ومتزامناً لتفادي ظهور الصفحتين معاً عند الرفريش -->
+  <script>
+    (function () {
+      if (/^\/room\/[a-zA-Z0-9_-]+$/.test(window.location.pathname)) {
+        document.getElementById('home-page').classList.add('hidden');
+        document.getElementById('room-page').classList.remove('hidden');
+      }
+    })();
+  </script>
+
+  <!-- مكتبات خارجية -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
+  <script src="script.js"></script>
+</body>
+
+</html>
