@@ -4,170 +4,258 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>اجتماع صوتي سريع</title>
+  <title>صوتي | اجتماعات صوتية فورية</title>
   <meta name="description" content="أنشئ غرفة اجتماع صوتية في ثانية وشارك الرابط مع فريقك. بدون تسجيل دخول." />
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              black: '#0A0A0A',
+              card: '#141414',
+              border: '#262626',
+              white: '#FAFAFA',
+              muted: '#A1A1AA',
+              accent: '#FFFFFF',
+            }
+          },
+          fontFamily: {
+            cairo: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+      }
+      .animate-scale-in {
+        animation: scaleIn 0.3s ease-out forwards;
+      }
+      .speak-pulse {
+        animation: speakPulse 1.5s infinite;
+      }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes speakPulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0A0A0A;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #262626;
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #404040;
+    }
+  </style>
+
   <link rel="stylesheet" href="/style.css" />
 </head>
 
-<body>
+<body class="bg-brand-black text-brand-white font-cairo min-h-screen selection:bg-white selection:text-black">
 
-  <!-- ═══════════════════════════════════════════════
-       الصفحة الرئيسية
-  ═══════════════════════════════════════════════ -->
-  <div id="home-page" class="page">
-    <div class="hero-bg"></div>
-
-    <header class="home-header">
-      <div class="logo">
-        <span class="logo-icon">🎙️</span>
-        <span class="logo-text">صوتي</span>
+  <!-- الصفحة الرئيسية -->
+  <div id="home-page" class="page min-h-screen flex flex-col">
+    <header class="p-6 md:p-8 flex justify-between items-center max-w-7xl mx-auto w-full">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+          <i data-lucide="mic" class="text-black"></i>
+        </div>
+        <span class="text-xl font-bold tracking-tight">صوتي</span>
+      </div>
+      <div class="hidden md:flex items-center gap-6 text-sm text-brand-muted">
+        <a href="#" class="hover:text-white transition-colors">عن الخدمة</a>
+        <a href="#" class="hover:text-white transition-colors">الأمان</a>
+        <a href="#" class="hover:text-white transition-colors">المساعدة</a>
       </div>
     </header>
 
-    <main class="home-main">
-      <div class="hero-card">
-        <div class="hero-badge">✨ بدون تسجيل دخول</div>
-        <h1 class="hero-title">اجتماعات صوتية<br /><span class="gradient-text">فورية ومجانية</span></h1>
-        <p class="hero-subtitle">أنشئ غرفة في ثانية، شارك الرابط، وابدأ الحديث فوراً مع فريقك.</p>
+    <main class="flex-1 flex items-center justify-center p-6">
+      <div class="max-w-xl w-full text-center space-y-8 animate-fade-in-up">
+        <div class="space-y-4">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-border/50 border border-brand-border text-xs font-medium text-brand-muted">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            فوري ومجاني للأبد
+          </div>
+          <h1 class="text-4xl md:text-6xl font-extrabold leading-tight">اجتماعات صوتية <br /><span class="text-brand-muted">بسيطة وراقية</span></h1>
+          <p class="text-brand-muted text-lg max-w-md mx-auto">تواصل مع فريقك فوراً بدون تعقيدات تسجيل الدخول. أنشئ غرفتك في ثوانٍ وشارك الرابط.</p>
+        </div>
 
-        <div class="action-group">
-          <button id="create-room-btn" class="btn btn-primary btn-lg">
-            <span class="btn-icon">➕</span>
+        <div class="bg-brand-card/50 backdrop-blur-xl border border-brand-border rounded-3xl p-8 space-y-6 shadow-2xl">
+          <button id="create-room-btn" class="w-full py-4 bg-white text-black rounded-2xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group">
+            <i data-lucide="plus-circle" class="transition-transform group-hover:rotate-90"></i>
             إنشاء غرفة جديدة
           </button>
 
-          <div class="divider-or"><span>أو</span></div>
+          <div class="relative flex items-center gap-4 text-brand-muted">
+            <div class="flex-1 h-px bg-brand-border"></div>
+            <span class="text-xs font-bold">أو</span>
+            <div class="flex-1 h-px bg-brand-border"></div>
+          </div>
 
-          <div class="join-group">
-            <input id="join-link-input" type="text" class="input-field" placeholder="الصق رابط الغرفة هنا..."
-              autocomplete="off" />
-            <button id="join-btn" class="btn btn-secondary">
-              <span class="btn-icon">🚀</span>
+          <div class="flex gap-2">
+            <input id="join-link-input" type="text" class="flex-1 bg-brand-black border border-brand-border rounded-2xl px-5 py-4 text-sm outline-none focus:border-white transition-all placeholder:text-brand-muted" placeholder="الصق رابط الغرفة هنا..." autocomplete="off" />
+            <button id="join-btn" class="px-8 bg-brand-border hover:bg-white hover:text-black rounded-2xl font-bold transition-all flex items-center gap-2">
+              <i data-lucide="arrow-right"></i>
               انضمام
             </button>
           </div>
         </div>
 
-        <div class="features-row">
-          <div class="feature-chip">🔒 خصوصي</div>
-          <div class="feature-chip">⚡ فوري</div>
-          <div class="feature-chip">🖥️ مشاركة الشاشة</div>
-          <div class="feature-chip">👥 حتى 6 أشخاص</div>
+        <div class="flex flex-wrap justify-center gap-4 text-xs text-brand-muted font-medium">
+          <div class="flex items-center gap-1.5"><i data-lucide="shield-check" class="w-4 h-4"></i> تشفير كامل</div>
+          <div class="flex items-center gap-1.5"><i data-lucide="monitor" class="w-4 h-4"></i> مشاركة الشاشة</div>
+          <div class="flex items-center gap-1.5"><i data-lucide="user-check" class="w-4 h-4"></i> بدون بيانات</div>
         </div>
       </div>
     </main>
   </div>
 
-  <!-- ═══════════════════════════════════════════════
-       صفحة الغرفة
-  ═══════════════════════════════════════════════ -->
-  <div id="room-page" class="page hidden">
-    <div class="room-bg"></div>
-
-    <!-- شريط العلوي -->
-    <header class="room-header">
-      <div class="room-header-right">
-        <span class="logo-icon">🎙️</span>
-        <div class="room-info">
-          <span class="room-label">الغرفة</span>
-          <span id="room-id-display" class="room-id"></span>
+  <!-- صفحة الغرفة -->
+  <div id="room-page" class="page hidden min-h-screen flex flex-col bg-brand-black">
+    <header class="p-4 border-b border-brand-border bg-brand-black/80 backdrop-blur-md sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-9 h-9 bg-white/5 rounded-lg flex items-center justify-center border border-brand-border">
+            <i data-lucide="mic" class="w-5 h-5 text-white"></i>
+          </div>
+          <div class="hidden sm:block">
+            <p class="text-[10px] text-brand-muted font-bold uppercase tracking-widest">معرف الغرفة</p>
+            <p id="room-id-display" class="text-sm font-bold tracking-tight"></p>
+          </div>
         </div>
-      </div>
 
-      <div class="room-header-actions">
-        <button id="copy-link-btn" class="btn btn-ghost btn-sm">
-          <span>📋</span> نسخ الرابط
-        </button>
-        <button id="leave-btn" class="btn btn-danger btn-sm">
-          <span>🚪</span> خروج
-        </button>
+        <div class="flex items-center gap-3">
+          <button id="copy-link-btn" class="flex items-center gap-2 px-4 py-2 bg-brand-border hover:bg-white hover:text-black rounded-xl text-sm font-bold transition-all">
+            <i data-lucide="copy" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">نسخ الرابط</span>
+          </button>
+          <button id="leave-btn" class="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl text-sm font-bold transition-all">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+            خروج
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- المحتوى الرئيسي للغرفة -->
-    <main class="room-main">
-
-      <!-- ─── منطقة الفيديو / الشاشة المشتركة ─── -->
-      <div id="screen-area" class="screen-area hidden">
-        <div class="screen-wrapper">
-          <div class="screen-label">
-            <span id="screen-sharer-name"></span>
-            <span class="screen-badge">يشارك الشاشة</span>
-          </div>
-          <button id="fullscreen-btn" class="fullscreen-btn" title="ملء الشاشة">
-            <span id="fullscreen-icon">⛶</span>
-          </button>
-          <video id="remote-screen-video" autoplay playsinline class="screen-video"></video>
+    <main class="flex-1 flex flex-col lg:flex-row max-w-7xl mx-auto w-full p-4 lg:p-6 gap-6 overflow-hidden">
+      <!-- المنطقة اليسرى: منطقة الشاشة المشتركة -->
+      <div id="screen-area" class="hidden flex-1 bg-black rounded-3xl border border-brand-border relative overflow-hidden flex items-center justify-center animate-scale-in">
+        <div class="absolute top-4 right-4 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+          <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+          <span id="screen-sharer-name" class="text-xs font-bold"></span>
+          <span class="text-[10px] text-brand-muted">يشارك الشاشة</span>
         </div>
+
+        <button id="fullscreen-btn" class="absolute bottom-4 right-4 z-10 w-10 h-10 bg-black/60 hover:bg-white hover:text-black rounded-xl border border-white/10 flex items-center justify-center transition-all">
+          <i id="fullscreen-icon" data-lucide="maximize" class="w-5 h-5"></i>
+        </button>
+
+        <video id="remote-screen-video" autoplay playsinline class="w-full h-full object-contain"></video>
       </div>
 
-      <!-- ─── لوحة التحكم والمشاركون ─── -->
-      <div class="room-content">
-
-        <!-- المشاركون -->
-        <section class="participants-section">
-          <h2 class="section-title">
-            <span>👥</span>
-            المشاركون
-            <span id="participant-count" class="count-badge">0</span>
-          </h2>
-          <div id="participants-list" class="participants-grid">
-            <!-- يتم ملؤها ديناميكياً -->
+      <!-- المنطقة اليمنى: المشاركون -->
+      <div class="w-full lg:w-96 flex flex-col gap-6 h-full">
+        <div class="bg-brand-card rounded-3xl border border-brand-border p-6 flex-1 flex flex-col overflow-hidden">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-bold flex items-center gap-2">
+              المشاركون
+              <span id="participant-count" class="text-[10px] bg-brand-border px-2 py-0.5 rounded-full text-brand-muted">0</span>
+            </h2>
           </div>
-        </section>
+
+          <div id="participants-list" class="flex-1 overflow-y-auto space-y-3 custom-scrollbar">
+            <!-- ملء ديناميكي -->
+          </div>
+        </div>
 
         <!-- أزرار التحكم -->
-        <section class="controls-section">
-          <div class="controls-bar">
+        <div class="bg-brand-card rounded-3xl border border-brand-border p-4 flex justify-between items-center gap-4">
+          <button id="mute-btn" class="flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl hover:bg-brand-border transition-all group" data-muted="false">
+            <div class="w-12 h-12 bg-brand-black rounded-xl flex items-center justify-center border border-brand-border transition-all group-hover:border-white">
+              <i data-lucide="mic" class="w-6 h-6 control-icon"></i>
+            </div>
+            <span class="text-[10px] font-bold control-label">كتم الصوت</span>
+          </button>
 
-            <button id="mute-btn" class="control-btn" data-muted="false">
-              <span class="control-icon">🎙️</span>
-              <span class="control-label">كتم الصوت</span>
-            </button>
-
-            <button id="screen-btn" class="control-btn" data-sharing="false">
-              <span class="control-icon">🖥️</span>
-              <span class="control-label">مشاركة الشاشة</span>
-            </button>
-
-          </div>
-        </section>
-
+          <button id="screen-btn" class="flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl hover:bg-brand-border transition-all group" data-sharing="false">
+            <div class="w-12 h-12 bg-brand-black rounded-xl flex items-center justify-center border border-brand-border transition-all group-hover:border-white">
+              <i data-lucide="monitor" class="w-6 h-6 control-icon"></i>
+            </div>
+            <span class="text-[10px] font-bold control-label">مشاركة الشاشة</span>
+          </button>
+        </div>
       </div>
     </main>
 
-    <!-- عناصر الصوت المخفية للمشاركين البعيدين -->
     <div id="audio-container" style="display:none;"></div>
   </div>
 
-  <!-- ─── نافذة الإشعارات ─── -->
-  <div id="toast-container" class="toast-container"></div>
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
-  <!-- ─── نافذة الخطأ ─── -->
-  <div id="error-modal" class="modal hidden">
-    <div class="modal-content">
-      <div class="modal-icon">⚠️</div>
-      <h3 id="error-title" class="modal-title">خطأ</h3>
-      <p id="error-message" class="modal-message"></p>
-      <button id="error-close-btn" class="btn btn-primary">حسناً</button>
+  <!-- Modal Error -->
+  <div id="error-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+    <div class="max-w-sm w-full bg-brand-card border border-brand-border rounded-3xl p-8 text-center space-y-6 shadow-2xl animate-scale-in">
+      <div class="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto text-3xl shadow-[0_0_20px_rgba(239,68,68,0.1)]">
+        <i data-lucide="alert-triangle" class="w-10 h-10"></i>
+      </div>
+      <div class="space-y-2">
+        <h3 id="error-title" class="text-xl font-bold">خطأ</h3>
+        <p id="error-message" class="text-sm text-brand-muted leading-relaxed"></p>
+      </div>
+      <button id="error-close-btn" class="w-full py-3 bg-brand-border hover:bg-white hover:text-black rounded-xl font-bold transition-all">حسناً</button>
     </div>
   </div>
 
-  <!-- ─── إخفاء فوري للصفحة الصحيحة قبل تحميل JS ─── -->
-  <!-- يُشغَّل هذا النص فوراً ومتزامناً لتفادي ظهور الصفحتين معاً عند الرفريش -->
   <script>
     (function () {
       if (/^\/room\/[a-zA-Z0-9_-]+$/.test(window.location.pathname)) {
         document.getElementById('home-page').classList.add('hidden');
         document.getElementById('room-page').classList.remove('hidden');
       }
+      lucide.createIcons();
     })();
   </script>
 
-  <!-- مكتبات خارجية -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
   <script src="/script.js"></script>
