@@ -83,6 +83,11 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('peer-toggle-screen', { userId, isSharing });
   });
 
+  // ─── اكتشاف التحدث ──────────────────────────────────────────────────────────
+  socket.on('toggle-speaking', ({ roomId, isSpeaking }) => {
+    socket.to(roomId).emit('peer-toggle-speaking', { socketId: socket.id, isSpeaking });
+  });
+
   // ─── مغادرة المستخدم ────────────────────────────────────────────────────────
   socket.on('leave-room', ({ roomId, userId }) => {
     handleUserLeave(socket, roomId, userId);

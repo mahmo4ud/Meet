@@ -28,8 +28,14 @@ let currentRoomId = null;
 let isMuted = false;
 let isSharing = false;
 
-// المشاركون: { [socketId]: { userId, userName, isMuted, isSharing } }
+// المشاركون: { [socketId]: { userId, userName, isMuted, isSharing, isSpeaking } }
 const participants = {};
+
+// لاكتشاف الصوت
+let audioContext = null;
+let analyser = null;
+let microphone = null;
+let speechInterval = null;
 
 // ═══════════════════════════════════════════════════════
 // عناصر الواجهة
@@ -140,7 +146,7 @@ function addParticipantCard(socketId, data, isMe = false) {
     card.innerHTML = `
     <div class="participant-avatar">
       ${getInitials(data.userName)}
-      ${isMe ? '<div class="speaking-ring hidden"></div>' : ''}
+      <div class="speaking-ring hidden"></div>
     </div>
     <div class="participant-name">${data.userName}</div>
     ${isMe ? '<div class="participant-you-badge">أنت</div>' : ''}
@@ -192,6 +198,10 @@ async function getLocalAudio() {
             },
             video: false,
         });
+        
+        // إعداد مراقبة مستوى الصوت
+        startAudioLevelDetection();
+        
         return true;
     } catch (err) {
         console.error('خطأ في الوصول للميكروفون:', err);
@@ -209,6 +219,64 @@ async function getLocalAudio() {
             showError('خطأ في الميكروفون', `حدث خطأ: ${err.message}`);
         }
         return false;
+    }
+}
+
+/** مراقبة مستوى الصوت المحلي */
+function startAudioLevelDetection() {
+    if (!localStream) return;
+
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        microphone = audioContext.createMediaStreamSource(localStream);
+        microphone.connect(analyser);
+        analyser.fftSize = 512;
+        
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        
+        let wasSpeaking = false;
+
+        speechInterval = setInterval(() => {
+            if (isMuted) {
+                if (wasSpeaking) toggleSpeakingUI(socket.id, false);
+                wasSpeaking = false;
+                return;
+            }
+
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / bufferLength;
+            const isSpeaking = average > 25; // عتبة الصوت
+
+            if (isSpeaking !== wasSpeaking) {
+                wasSpeaking = isSpeaking;
+                toggleSpeakingUI(socket.id, isSpeaking);
+                // إرسال الحالة للبقية
+                socket.emit('toggle-speaking', { roomId: currentRoomId, isSpeaking });
+            }
+        }, 150);
+    } catch (e) {
+        console.warn('تعذر تهيئة AudioContext:', e);
+    }
+}
+
+/** تفعيل/تعطيل مؤشر التحدث في الواجهة */
+function toggleSpeakingUI(socketId, isSpeaking) {
+    const card = document.getElementById(`card-${socketId}`);
+    if (!card) return;
+    
+    const ring = card.querySelector('.speaking-ring');
+    if (!ring) return;
+
+    if (isSpeaking) {
+        ring.classList.remove('hidden');
+    } else {
+        ring.classList.add('hidden');
     }
 }
 
@@ -414,6 +482,11 @@ socket.on('user-disconnected', ({ userId, socketId: remoteSocketId }) => {
     }
 });
 
+/** استقبال حالة التحدث من مستخدم بعيد */
+socket.on('peer-toggle-speaking', ({ socketId, isSpeaking }) => {
+    toggleSpeakingUI(socketId, isSpeaking);
+});
+
 /** تحديث حالة مشاركة الشاشة من مستخدم بعيد */
 socket.on('peer-toggle-screen', ({ userId, isSharing: shareState }) => {
     // البحث عن socketId للمستخدم عبر userId
@@ -434,6 +507,16 @@ socket.on('peer-toggle-screen', ({ userId, isSharing: shareState }) => {
 // ═══════════════════════════════════════════════════════
 
 async function joinRoom(roomId) {
+    // التأكد من اتصال السوكيت أولاً لضمان توفر socket.id
+    if (!socket.connected) {
+        console.log('⏳ في انتظار اتصال الخادم...');
+        await new Promise(resolve => {
+            socket.once('connect', resolve);
+            // إذا كان متصلاً بالفعل صدفةً
+            if (socket.connected) resolve();
+        });
+    }
+
     currentRoomId = roomId;
 
     // إظهار صفحة الغرفة
@@ -450,7 +533,7 @@ async function joinRoom(roomId) {
         showToast('سيتم الانضمام بدون صوت', 'warning');
     }
 
-    // إضافة نفسنا للقائمة
+    // إضافة نفسنا للقائمة (الآن نضمن أن socket.id موجود)
     addParticipantCard(socket.id, { userId: myUserId, userName: myUserName }, true);
 
     // إرسال طلب الانضمام للخادم
@@ -744,6 +827,10 @@ function leaveRoom() {
     screenBtn.querySelector('.control-label').textContent = 'مشاركة الشاشة';
     Object.keys(participants).forEach((k) => delete participants[k]);
 
+    // إيقاف اكتشاف الصوت
+    if (speechInterval) clearInterval(speechInterval);
+    if (audioContext) audioContext.close();
+    
     // العودة للصفحة الرئيسية
     window.history.pushState({}, '', '/');
     document.title = 'اجتماع صوتي سريع';
