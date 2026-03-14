@@ -129,6 +129,9 @@ function getInitials(name) {
 
 /** إضافة مشارك جديد للقائمة */
 function addParticipantCard(socketId, data, isMe = false) {
+    // تجنب التكرار إذا كان موجوداً بالفعل
+    if (participants[socketId]) return;
+
     participants[socketId] = { ...data, isMe, isMuted: false, isSharing: false };
 
     const card = document.createElement('div');
@@ -265,25 +268,15 @@ function createPeer(remoteSocketId, initiator, remoteUserId, remoteUserName) {
         }
     });
 
-    // استقبال تيار الوسائط من المستخدم البعيد
+    // استقبال تيار الوسائط من المستخدم البعيد (صوت أو فيديو)
     peer.on('stream', (stream) => {
-        handleRemoteStream(stream, remoteSocketId, remoteUserName);
+        handleRemoteMedia(stream, remoteSocketId, remoteUserName);
     });
 
-    // استقبال مسار فيديو (مشاركة الشاشة)
+    // استقبال مسار فيديو (مشاركة الشاشة) في حال تأخر الحدث
     peer.on('track', (track, stream) => {
         if (track.kind === 'video') {
-            // عرض الشاشة المشتركة
-            remoteScreenVideo.srcObject = stream;
-            screenSharerName.textContent = remoteUserName;
-            screenArea.classList.remove('hidden');
-            updateParticipantScreenState(remoteSocketId, true);
-
-            track.onended = () => {
-                screenArea.classList.add('hidden');
-                remoteScreenVideo.srcObject = null;
-                updateParticipantScreenState(remoteSocketId, false);
-            };
+            handleRemoteMedia(stream, remoteSocketId, remoteUserName);
         }
     });
 
@@ -302,20 +295,45 @@ function createPeer(remoteSocketId, initiator, remoteUserId, remoteUserName) {
     return peer;
 }
 
-/** معالجة التيار الصوتي القادم من مستخدم بعيد */
-function handleRemoteStream(stream, remoteSocketId, remoteUserName) {
-    // إزالة أي عنصر صوت قديم لنفس المستخدم
-    const existingAudio = document.getElementById(`audio-${remoteSocketId}`);
-    if (existingAudio) existingAudio.remove();
+/** معالجة التيار (صوت وفيديو) القادم من مستخدم بعيد */
+function handleRemoteMedia(stream, remoteSocketId, remoteUserName) {
+    console.log(`🔌 استقبال دفق وسائط من: ${remoteUserName} (${remoteSocketId})`);
 
-    // دعم الصوت فقط (الفيديو يعالج بشكل منفصل)
+    // 1. التعامل مع الصوت
     if (stream.getAudioTracks().length > 0) {
-        const audio = document.createElement('audio');
-        audio.id = `audio-${remoteSocketId}`;
-        audio.autoplay = true;
-        audio.playsInline = true;
-        audio.srcObject = stream;
-        audioContainer.appendChild(audio);
+        let audio = document.getElementById(`audio-${remoteSocketId}`);
+        if (!audio) {
+            audio = document.createElement('audio');
+            audio.id = `audio-${remoteSocketId}`;
+            audio.autoplay = true;
+            audio.playsInline = true;
+            audioContainer.appendChild(audio);
+        }
+        if (audio.srcObject !== stream) {
+            audio.srcObject = stream;
+        }
+    }
+
+    // 2. التعامل مع الفيديو (مشاركة الشاشة)
+    if (stream.getVideoTracks().length > 0) {
+        console.log(`🖥️ دفق فيديو (مشاركة شاشة) مكتشف من: ${remoteUserName}`);
+        
+        remoteScreenVideo.srcObject = stream;
+        screenSharerName.textContent = remoteUserName;
+        screenArea.classList.remove('hidden');
+        updateParticipantScreenState(remoteSocketId, true);
+
+        // التأكد من تشغل الفيديو (مهم ببعض المتصفحات)
+        remoteScreenVideo.play().catch(e => console.warn('تعذر تشغيل الفيديو تلقائياً:', e));
+
+        const videoTrack = stream.getVideoTracks()[0];
+        videoTrack.onended = () => {
+            if (remoteScreenVideo.srcObject === stream) {
+                screenArea.classList.add('hidden');
+                remoteScreenVideo.srcObject = null;
+                updateParticipantScreenState(remoteSocketId, false);
+            }
+        };
     }
 }
 

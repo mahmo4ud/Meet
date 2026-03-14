@@ -79,6 +79,7 @@ io.on('connection', (socket) => {
 
   // ─── مشاركة الشاشة ─────────────────────────────────────────────────────────
   socket.on('toggle-screen', ({ roomId, userId, isSharing }) => {
+    console.log(`🖥️ مشاركة شاشة: ${userId} في الغرفة ${roomId} (${isSharing ? 'بدأ' : 'توقف'})`);
     socket.to(roomId).emit('peer-toggle-screen', { userId, isSharing });
   });
 
