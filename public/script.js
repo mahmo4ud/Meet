@@ -50,7 +50,7 @@ const copyLinkBtn = document.getElementById('copy-link-btn');
 const leaveBtn = document.getElementById('leave-btn');
 const muteBtn = document.getElementById('mute-btn');
 const screenBtn = document.getElementById('screen-btn');
-const participantsList = document.getElementById('participants-list');
+const participantsGrid = document.getElementById('participants-grid');
 const participantCount = document.getElementById('participant-count');
 const audioContainer = document.getElementById('audio-container');
 const screenArea = document.getElementById('screen-area');
@@ -90,8 +90,8 @@ function generateRoomId() {
     return Math.random().toString(36).slice(2, 9);
 }
 
-/** عرض رسالة Toast */
-function showToast(message, type = 'info', duration = 3500) {
+/** عرض رسالة Toast (نظام الرسالة الواحدة) */
+function showToast(message, type = 'info', duration = 3000) {
     const icons = { 
         success: 'check-circle', 
         error: 'x-circle', 
@@ -99,15 +99,27 @@ function showToast(message, type = 'info', duration = 3500) {
         warning: 'alert-circle' 
     };
     const container = document.getElementById('toast-container');
+    
+    // التحقق مما إذا كانت نفس الرسالة معروضة بالفعل لتجنب التكرار غير الضروري
+    const existingToast = container.querySelector('.toast');
+    if (existingToast && existingToast.querySelector('span').textContent === message) {
+        return; 
+    }
+
+    // مسح الرسائل السابقة (لضمان ظهور رسالة واحدة فقط)
+    container.innerHTML = '';
+
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+    toast.className = `toast ${type} shadow-2xl backdrop-blur-md border border-white/5 animate-scale-in`;
     toast.innerHTML = `<i data-lucide="${icons[type] || 'info'}" class="w-5 h-5"></i><span>${message}</span>`;
     container.appendChild(toast);
     lucide.createIcons();
 
     setTimeout(() => {
         toast.classList.add('out');
-        setTimeout(() => toast.remove(), 300);
+        setTimeout(() => {
+            if (toast.parentNode === container) toast.remove();
+        }, 300);
     }, duration);
 }
 
@@ -122,11 +134,46 @@ errorClose.addEventListener('click', () => {
     document.getElementById('error-modal').classList.add('hidden');
 });
 
-/** تحديث عداد المشاركين */
+/** تحديث عداد المشاركين وتنسيق الشبكة */
 function updateParticipantCount() {
     const count = Object.keys(participants).length;
     participantCount.textContent = count;
+    
+    const isMobile = window.innerWidth < 768;
+    
+    // استخدام flexbox بدلاً من grid لضمان توازن العناصر عند الأعداد الفردية
+    participantsGrid.className = 'flex-1 flex flex-wrap items-center justify-center content-center gap-[22px] w-full h-full mx-auto transition-all duration-500 p-4';
+    
+    // ضبط الحجم الأقصى بناءً على عدد المشاركين والجهاز
+    if (count <= 1) {
+        participantsGrid.style.maxWidth = isMobile ? '100%' : '800px';
+    } else if (count === 2) {
+        participantsGrid.style.maxWidth = isMobile ? '100%' : '1200px';
+    } else {
+        participantsGrid.style.maxWidth = isMobile ? '100%' : '1400px';
+    }
+
+    // تحديث حجم العناصر يدوياً لضمان "التساوي" في حال وجود أعداد فردية
+    const tiles = participantsGrid.querySelectorAll('.participant-tile');
+    tiles.forEach(tile => {
+        if (count === 1) {
+            tile.style.width = '100%';
+            tile.style.maxHeight = isMobile ? '60vh' : '70vh';
+        } else if (count === 2) {
+            tile.style.width = isMobile ? '100%' : 'calc(50% - 11px)';
+            tile.style.maxHeight = isMobile ? '40vh' : '60vh';
+        } else if (count <= 4) {
+            tile.style.width = isMobile ? 'calc(50% - 11px)' : 'calc(50% - 11px)';
+            tile.style.maxHeight = isMobile ? '30vh' : '45vh';
+        } else {
+            tile.style.width = isMobile ? 'calc(50% - 11px)' : 'calc(33.33% - 15px)';
+            tile.style.maxHeight = isMobile ? '25vh' : '40vh';
+        }
+    });
 }
+
+// تحديث التنسيق عند تغيير حجم المتصفح
+window.addEventListener('resize', updateParticipantCount);
 
 // ═══════════════════════════════════════════════════════
 // إدارة بطاقات المشاركين
@@ -139,38 +186,46 @@ function getInitials(name) {
     return name.slice(0, 2);
 }
 
-/** إضافة مشارك جديد للقائمة */
+/** إضافة مشارك جديد للقائمة (شبكة) */
 function addParticipantCard(socketId, data, isMe = false) {
     // تجنب التكرار إذا كان موجوداً بالفعل
     if (participants[socketId]) return;
 
     participants[socketId] = { ...data, isMe, isMuted: false, isSharing: false };
 
-    const card = document.createElement('div');
-    card.className = `participant-card relative bg-brand-border/20 border border-brand-border rounded-2xl p-4 flex items-center gap-4 animate-scale-in group overflow-hidden ${isMe ? 'ring-1 ring-white/20' : ''}`;
-    card.id = `card-${socketId}`;
-    card.innerHTML = `
-    <div class="participant-avatar w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center font-bold text-lg text-white border border-brand-border relative flex-shrink-0">
+    const tile = document.createElement('div');
+    tile.className = `participant-tile relative aspect-video bg-brand-card border border-brand-border rounded-[2.5rem] flex flex-col items-center justify-center animate-scale-in group overflow-hidden shadow-2xl transition-all duration-300 ${isMe ? 'ring-1 ring-white/10' : ''}`;
+    tile.id = `card-${socketId}`;
+    
+    // صورة رمزية أو أحرف (دائرة كبيرة في المنتصف)
+    tile.innerHTML = `
+    <div class="participant-avatar w-24 h-24 md:w-32 md:h-32 rounded-full bg-white/5 flex items-center justify-center font-bold text-3xl md:text-4xl text-white border-2 border-brand-border relative z-10 transition-transform duration-500 group-hover:scale-105">
       ${getInitials(data.userName)}
-      <div class="speaking-ring hidden"></div>
+      <div class="speaking-ring absolute inset-0 rounded-full border-4 border-white/40 hidden"></div>
     </div>
-    <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-2">
-        <span class="participant-name font-bold text-sm truncate">${data.userName}</span>
-        ${isMe ? '<span class="text-[9px] bg-white text-black px-1.5 py-0.5 rounded-md font-bold">أنت</span>' : ''}
+    
+    <!-- خلفية خفيفة متدرجة -->
+    <div class="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent opacity-50"></div>
+
+    <!-- اسم المشارك في الأسفل -->
+    <div class="absolute bottom-6 left-6 right-6 z-20 flex items-center justify-between">
+      <div class="flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/5">
+        <span class="participant-name font-bold text-xs md:text-sm text-white truncate max-w-[100px] md:max-w-none">${data.userName}</span>
+        ${isMe ? '<span class="text-[8px] bg-white text-black px-1.5 py-0.5 rounded-lg font-black uppercase">أنت</span>' : ''}
       </div>
-      <div class="flex items-center gap-2 mt-0.5">
-        <span class="sharing-indicator hidden text-[9px] text-green-500 font-bold flex items-center gap-1">
-          <i data-lucide="monitor" class="w-3 h-3"></i> يشارك الشاشة
+
+      <div class="flex items-center gap-2">
+        <span class="mute-indicator hidden w-8 h-8 bg-red-500/20 backdrop-blur-md border border-red-500/30 rounded-full flex items-center justify-center text-red-500 shadow-lg">
+          <i data-lucide="mic-off" class="w-4 h-4"></i>
         </span>
-        <span class="mute-indicator hidden text-[9px] text-red-500 font-bold flex items-center gap-1">
-          <i data-lucide="mic-off" class="w-3 h-3"></i> مكتوم
+        <span class="sharing-indicator hidden w-8 h-8 bg-green-500/20 backdrop-blur-md border border-green-500/30 rounded-full flex items-center justify-center text-green-500 shadow-lg">
+          <i data-lucide="monitor" class="w-4 h-4"></i>
         </span>
       </div>
     </div>
   `;
 
-    participantsList.appendChild(card);
+    participantsGrid.appendChild(tile);
     lucide.createIcons();
     updateParticipantCount();
 }
@@ -583,8 +638,8 @@ async function startScreenShare() {
         // تحديث زر مشاركة الشاشة
         screenBtn.setAttribute('data-sharing', 'true');
         screenBtn.classList.add('bg-white', 'text-black');
-        screenBtn.querySelector('.control-icon').outerHTML = '<i data-lucide="x-circle" class="w-6 h-6 control-icon"></i>';
-        screenBtn.querySelector('.control-label').textContent = 'إيقاف المشاركة';
+        screenBtn.querySelector('.control-icon').outerHTML = '<i data-lucide="x-circle" class="w-5 h-5 control-icon"></i>';
+        screenBtn.querySelector('.control-label').textContent = 'إيقاف';
         lucide.createIcons();
 
         // إضافة مسار الفيديو إلى جميع اتصالات peer الموجودة
@@ -657,8 +712,8 @@ function stopScreenShare() {
     // تحديث الواجهة
     screenBtn.setAttribute('data-sharing', 'false');
     screenBtn.classList.remove('bg-white', 'text-black');
-    screenBtn.querySelector('.control-icon').outerHTML = '<i data-lucide="monitor" class="w-6 h-6 control-icon"></i>';
-    screenBtn.querySelector('.control-label').textContent = 'مشاركة الشاشة';
+    screenBtn.querySelector('.control-icon').outerHTML = '<i data-lucide="monitor" class="w-5 h-5 control-icon"></i>';
+    screenBtn.querySelector('.control-label').textContent = 'مشاركة';
     lucide.createIcons();
 
     // إعلام الخادم
@@ -726,10 +781,10 @@ copyLinkBtn.addEventListener('click', async () => {
         await navigator.clipboard.writeText(url);
         showToast('تم نسخ الرابط بنجاح', 'success');
         const icon = copyLinkBtn.querySelector('i');
-        icon.outerHTML = '<i data-lucide="check-circle" class="w-4 h-4"></i>';
+        icon.outerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>';
         lucide.createIcons();
         setTimeout(() => {
-            copyLinkBtn.querySelector('i').outerHTML = '<i data-lucide="copy" class="w-4 h-4"></i>';
+            copyLinkBtn.querySelector('i').outerHTML = '<i data-lucide="copy" class="w-5 h-5 text-white"></i>';
             lucide.createIcons();
         }, 2000);
     } catch {
@@ -763,12 +818,12 @@ muteBtn.addEventListener('click', () => {
 
     if (isMuted) {
         muteBtn.classList.add('bg-red-500', 'text-white', 'border-red-500');
-        icon.outerHTML = '<i data-lucide="mic-off" class="w-6 h-6 control-icon"></i>';
+        icon.outerHTML = '<i data-lucide="mic-off" class="w-5 h-5 control-icon"></i>';
         label.textContent = 'رفع الكتم';
         showToast('تم كتم صوتك', 'info');
     } else {
         muteBtn.classList.remove('bg-red-500', 'text-white', 'border-red-500');
-        icon.outerHTML = '<i data-lucide="mic" class="w-6 h-6 control-icon"></i>';
+        icon.outerHTML = '<i data-lucide="mic" class="w-5 h-5 control-icon"></i>';
         label.textContent = 'كتم الصوت';
         showToast('تم رفع كتم صوتك', 'success');
     }
@@ -861,7 +916,7 @@ function leaveRoom() {
     currentRoomId = null;
     isMuted = false;
     isSharing = false;
-    participantsList.innerHTML = '';
+    participantsGrid.innerHTML = '';
     audioContainer.innerHTML = '';
     screenArea.classList.add('hidden');
     muteBtn.setAttribute('data-muted', 'false');
