@@ -110,8 +110,8 @@ function showToast(message, type = 'info', duration = 3000) {
     container.innerHTML = '';
 
     const toast = document.createElement('div');
-    toast.className = `toast ${type} shadow-2xl backdrop-blur-md border border-white/5 animate-scale-in`;
-    toast.innerHTML = `<i data-lucide="${icons[type] || 'info'}" class="w-5 h-5"></i><span>${message}</span>`;
+    toast.className = `toast ${type} flex items-center gap-3 px-6 py-3 rounded-full bg-brand-card/90 backdrop-blur-xl border border-white/10 shadow-2xl animate-scale-in text-white`;
+    toast.innerHTML = `<i data-lucide="${icons[type] || 'info'}" class="w-5 h-5"></i><span class="font-bold text-sm text-center">${message}</span>`;
     container.appendChild(toast);
     lucide.createIcons();
 
