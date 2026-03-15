@@ -943,9 +943,11 @@ async function startScreenShare() {
 
         // تحديث زر مشاركة الشاشة
         screenBtn.setAttribute('data-sharing', 'true');
-        screenBtn.classList.add('bg-white', 'text-black');
-        screenBtn.querySelector('.control-icon').outerHTML = '<i data-lucide="x-circle" class="w-5 h-5 control-icon"></i>';
-        screenBtn.querySelector('.control-label').textContent = 'إيقاف';
+        screenBtn.classList.add('bg-red-500/10', 'border-red-500/50');
+        screenBtn.classList.remove('bg-brand-black');
+        screenBtn.querySelector('.control-icon').outerHTML = '<i data-lucide="x-circle" class="w-4 h-4 sm:w-5 sm:h-5 control-icon text-red-500"></i>';
+        screenBtn.querySelector('.control-label').textContent = 'إيقاف الشاشة';
+        screenBtn.querySelector('.control-label').classList.replace('text-brand-muted', 'text-red-500');
         lucide.createIcons();
 
         // إضافة مسار الفيديو إلى جميع اتصالات peer الموجودة
@@ -967,6 +969,10 @@ async function startScreenShare() {
         showToast('بدأت مشاركة الشاشة', 'success');
 
         // ── عرض الشاشة المشتركة للشخص نفسه داخل الكارد ──
+        if (participants[socket.id]) {
+            participants[socket.id].screenStream = screenStream;
+        }
+
         const myCard = document.getElementById(`card-${socket.id}`);
         if (myCard) {
             const video = myCard.querySelector('.participant-screen');
@@ -1022,11 +1028,12 @@ function stopScreenShare() {
     updateParticipantScreenState(socket.id, false);
 
     // تحديث الواجهة
-    // تحديث الواجهة
     screenBtn.setAttribute('data-sharing', 'false');
-    screenBtn.classList.remove('bg-white', 'text-black');
-    screenBtn.querySelector('.control-icon').outerHTML = '<i data-lucide="monitor" class="w-5 h-5 control-icon"></i>';
-    screenBtn.querySelector('.control-label').textContent = 'مشاركة';
+    screenBtn.classList.remove('bg-red-500/10', 'border-red-500/50', 'bg-white', 'text-black');
+    screenBtn.classList.add('bg-brand-black');
+    screenBtn.querySelector('.control-icon').outerHTML = '<i data-lucide="monitor" class="w-4 h-4 sm:w-5 sm:h-5 control-icon text-white"></i>';
+    screenBtn.querySelector('.control-label').textContent = 'مشاركة الشاشة';
+    screenBtn.querySelector('.control-label').classList.replace('text-red-500', 'text-brand-muted');
     lucide.createIcons();
 
     isSharing = false;
@@ -1124,11 +1131,14 @@ copyLinkBtn.addEventListener('click', async () => {
         await navigator.clipboard.writeText(url);
         showToast('تم نسخ الرابط بنجاح', 'success');
         const icon = copyLinkBtn.querySelector('i');
-        icon.outerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>';
+        icon.outerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5 text-green-500"></i>';
         lucide.createIcons();
         setTimeout(() => {
-            copyLinkBtn.querySelector('i').outerHTML = '<i data-lucide="copy" class="w-5 h-5 text-white"></i>';
-            lucide.createIcons();
+            const currentIcon = copyLinkBtn.querySelector('i');
+            if (currentIcon) {
+                currentIcon.outerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5 text-brand-muted group-hover:text-white transition-colors"></i>';
+                lucide.createIcons();
+            }
         }, 2000);
     } catch {
         // Fallback للمتصفحات القديمة
