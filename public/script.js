@@ -23,13 +23,22 @@ const peers = {};
 
 // معلومات المستخدم الحالي
 const myUserId = generateUserId();
-let myUserName = generateUserName();
+let myUserName = localStorage.getItem('souti_userName') || '';
+let mySpecialty = localStorage.getItem('souti_userJob') || ''; // تخصص المستخدم [NEW]
+let myProfilePic = localStorage.getItem('souti_userPic') || ''; // صورة المستخدم [NEW]
+let meetingName = '';           // اسم الاجتماع [NEW]
 let currentRoomId = null;
 let isMuted = false;
 let isSharing = false;
 
-// المشاركون: { [socketId]: { userId, userName, isMuted, isSharing, isSpeaking } }
+// المشاركون: { [socketId]: { userId, userName, specialty, isMuted, isSharing, isSpeaking } }
 const participants = {};
+
+// إعدادات الصفحات والجرد [NEW]
+let currentPage = 0;
+const columns = 5;
+const rows = 4;
+const itemsPerPage = columns * rows; // 20
 
 // لاكتشاف الصوت
 let audioContext = null;
@@ -37,9 +46,7 @@ let analyser = null;
 let microphone = null;
 let speechInterval = null;
 
-// ═══════════════════════════════════════════════════════
 // عناصر الواجهة
-// ═══════════════════════════════════════════════════════
 const homePage = document.getElementById('home-page');
 const roomPage = document.getElementById('room-page');
 const createRoomBtn = document.getElementById('create-room-btn');
@@ -59,6 +66,23 @@ const screenSharerName = document.getElementById('screen-sharer-name');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
 const fullscreenIcon = document.getElementById('fullscreen-icon');
 const errorClose = document.getElementById('error-close-btn');
+
+// زر إغلاق العرض المكبر [NEW]
+const closeScreenBtn = document.getElementById('close-screen-btn');
+
+// عناصر المودال الجديدة [NEW]
+const setupRoomModal = document.getElementById('setup-room-modal');
+const setupRoomNameInput = document.getElementById('setup-room-name');
+const setupRoomConfirmBtn = document.getElementById('setup-room-confirm');
+
+const userSetupModal = document.getElementById('user-setup-modal');
+const userSetupNameInput = document.getElementById('user-setup-name');
+const userSetupJobInput = document.getElementById('user-setup-job');
+const userSetupConfirmBtn = document.getElementById('user-setup-confirm');
+const userSetupSkipBtn = document.getElementById('user-setup-skip');
+const profileUpload = document.getElementById('profile-upload');
+const profilePreview = document.getElementById('profile-preview');
+const profilePicContainer = document.getElementById('profile-pic-container');
 
 // ═══════════════════════════════════════════════════════
 // دوال مساعدة
@@ -90,20 +114,43 @@ function generateRoomId() {
     return Math.random().toString(36).slice(2, 9);
 }
 
+// ── إعدادات صورة الملف الشخصي ──
+if (profilePicContainer) {
+    profilePicContainer.addEventListener('click', () => profileUpload.click());
+
+    profileUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                myProfilePic = event.target.result;
+                profilePreview.innerHTML = `<img src="${myProfilePic}" class="w-full h-full object-cover rounded-full aspect-square shadow-xl">`;
+                localStorage.setItem('souti_userPic', myProfilePic);
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // تحميل الصورة من الكاش إذا وجدت
+    if (myProfilePic) {
+        profilePreview.innerHTML = `<img src="${myProfilePic}" class="w-full h-full object-cover rounded-full aspect-square shadow-xl">`;
+    }
+}
+
 /** عرض رسالة Toast (نظام الرسالة الواحدة) */
 function showToast(message, type = 'info', duration = 3000) {
-    const icons = { 
-        success: 'check-circle', 
-        error: 'x-circle', 
-        info: 'info', 
-        warning: 'alert-circle' 
+    const icons = {
+        success: 'check-circle',
+        error: 'x-circle',
+        info: 'info',
+        warning: 'alert-circle'
     };
     const container = document.getElementById('toast-container');
-    
+
     // التحقق مما إذا كانت نفس الرسالة معروضة بالفعل لتجنب التكرار غير الضروري
     const existingToast = container.querySelector('.toast');
     if (existingToast && existingToast.querySelector('span').textContent === message) {
-        return; 
+        return;
     }
 
     // مسح الرسائل السابقة (لضمان ظهور رسالة واحدة فقط)
@@ -136,40 +183,187 @@ errorClose.addEventListener('click', () => {
 
 /** تحديث عداد المشاركين وتنسيق الشبكة */
 function updateParticipantCount() {
-    const count = Object.keys(participants).length;
+    const participantKeys = Object.keys(participants);
+    const count = participantKeys.length;
     participantCount.textContent = count;
-    
+
     const isMobile = window.innerWidth < 768;
-    
-    // استخدام flexbox بدلاً من grid لضمان توازن العناصر عند الأعداد الفردية
-    participantsGrid.className = 'flex-1 flex flex-wrap items-center justify-center content-center gap-[22px] w-full h-full mx-auto transition-all duration-500 p-4';
-    
-    // ضبط الحجم الأقصى بناءً على عدد المشاركين والجهاز
-    if (count <= 1) {
-        participantsGrid.style.maxWidth = isMobile ? '100%' : '800px';
-    } else if (count === 2) {
-        participantsGrid.style.maxWidth = isMobile ? '100%' : '1200px';
+    const currentItemsPerPage = isMobile ? 8 : itemsPerPage;
+
+    // إظهار/إخفاء أزرار التنقل
+    const hasMultiplePages = count > currentItemsPerPage;
+    const itemsToShow = hasMultiplePages ? currentItemsPerPage - 1 : currentItemsPerPage;
+    const totalPages = Math.ceil(count / itemsToShow);
+
+    document.getElementById('prev-page-btn').classList.toggle('hidden', currentPage === 0);
+    document.getElementById('next-page-btn').classList.toggle('hidden', currentPage >= totalPages - 1);
+
+    // حساب التوزيع الديناميكي للتصميم "المرن"
+    const startIdx = currentPage * itemsToShow;
+    const endIdx = startIdx + itemsToShow;
+    const pageParticipantsCount = participantKeys.slice(startIdx, endIdx).length;
+    const showOverflow = count > endIdx;
+    const displayedTilesCount = pageParticipantsCount + (showOverflow ? 1 : 0);
+
+    participantsGrid.className = 'flex-1 grid gap-3 md:gap-4 lg:gap-6 items-center justify-center content-center w-full h-full mx-auto transition-all duration-500 p-2 md:p-4 lg:p-6';
+
+    if (isMobile) {
+        participantsGrid.style.gridTemplateColumns = displayedTilesCount === 1 ? '1fr' : 'repeat(2, 1fr)';
+        participantsGrid.style.gridTemplateRows = 'auto';
+        participantsGrid.style.maxWidth = '100%';
     } else {
-        participantsGrid.style.maxWidth = isMobile ? '100%' : '1400px';
+        // منطق مرن لعدد العناصر في الصفحة الحالية
+        let dynamicCols = 1;
+        let dynamicRows = 1;
+
+        if (displayedTilesCount === 1) {
+            dynamicCols = 1;
+            participantsGrid.style.maxWidth = '800px';
+        } else if (displayedTilesCount === 2) {
+            dynamicCols = 2;
+            participantsGrid.style.maxWidth = '1200px';
+        } else if (displayedTilesCount === 3) {
+            dynamicCols = 3;
+            participantsGrid.style.maxWidth = '1400px';
+        } else if (displayedTilesCount === 4) {
+            dynamicCols = 2;
+            dynamicRows = 2;
+            participantsGrid.style.maxWidth = '1000px';
+        } else {
+            // للتوزيع الأكبر، نستخدم الحد الأقصى المطلوب بناءً على عرض الشاشة
+            const width = window.innerWidth;
+            let maxCols = 5;
+            if (width < 1024) maxCols = 3;
+            else if (width < 1400) maxCols = 4;
+            
+            dynamicCols = Math.min(displayedTilesCount, maxCols);
+            dynamicRows = Math.ceil(displayedTilesCount / dynamicCols);
+            participantsGrid.style.maxWidth = width < 1024 ? '1000px' : '1400px';
+        }
+
+        participantsGrid.style.gridTemplateColumns = `repeat(${dynamicCols}, 1fr)`;
+        participantsGrid.style.gridTemplateRows = `repeat(${dynamicRows}, auto)`;
     }
 
-    // تحديث حجم العناصر يدوياً لضمان "التساوي" في حال وجود أعداد فردية
-    const tiles = participantsGrid.querySelectorAll('.participant-tile');
-    tiles.forEach(tile => {
-        if (count === 1) {
-            tile.style.width = '100%';
-            tile.style.maxHeight = isMobile ? '60vh' : '70vh';
-        } else if (count === 2) {
-            tile.style.width = isMobile ? '100%' : 'calc(50% - 11px)';
-            tile.style.maxHeight = isMobile ? '40vh' : '60vh';
-        } else if (count <= 4) {
-            tile.style.width = isMobile ? 'calc(50% - 11px)' : 'calc(50% - 11px)';
-            tile.style.maxHeight = isMobile ? '30vh' : '45vh';
-        } else {
-            tile.style.width = isMobile ? 'calc(50% - 11px)' : 'calc(33.33% - 15px)';
-            tile.style.maxHeight = isMobile ? '25vh' : '40vh';
+    renderGrid();
+}
+
+/** رندر الشبكة بناءً على الصفحة الحالية */
+function renderGrid() {
+    const participantKeys = Object.keys(participants);
+    const totalCount = participantKeys.length;
+
+    // مسح الشبكة الحالية
+    participantsGrid.innerHTML = '';
+
+    // إذا كنت تستخدم صفحات، فكل صفحة تعرض (itemsPerPage - 1) إذا كان هناك المزيد
+    const isMobile = window.innerWidth < 768;
+    const currentItemsPerPage = isMobile ? 8 : itemsPerPage;
+    const hasMultiplePages = totalCount > currentItemsPerPage;
+    const itemsToShow = hasMultiplePages ? currentItemsPerPage - 1 : currentItemsPerPage;
+
+    const startIdx = currentPage * itemsToShow;
+    const endIdx = startIdx + itemsToShow;
+
+    // تحديد المشاركين للصفحة الحالية
+    const pageParticipants = participantKeys.slice(startIdx, endIdx);
+
+    pageParticipants.forEach((socketId) => {
+        const data = participants[socketId];
+        renderParticipantTile(socketId, data, data.isMe);
+    });
+
+    // إضافة كارد "المزيد" إذا كان هناك بقية
+    if (totalCount > endIdx) {
+        renderMoreCard(totalCount - endIdx);
+    }
+
+    lucide.createIcons();
+}
+
+/** رندر كارد مشارك منفرد */
+function renderParticipantTile(socketId, data, isMe = false) {
+    const tile = document.createElement('div');
+    tile.className = `participant-tile relative min-h-[120px] md:aspect-video bg-brand-card border border-brand-border rounded-2xl md:rounded-3xl flex flex-col items-center justify-center animate-scale-in group overflow-hidden shadow-2xl transition-all duration-500 ${isMe ? 'ring-1 ring-white/10' : ''}`;
+    tile.id = `card-${socketId}`;
+
+    tile.innerHTML = `
+    <!-- Blurred Background [NEW] -->
+    <div class="participant-bg absolute inset-0 z-0 overflow-hidden ${data.profilePic ? '' : 'hidden'}">
+      <img src="${data.profilePic}" class="w-full h-full object-cover blur-2xl opacity-40 scale-125">
+      <div class="absolute inset-0 bg-black/20"></div>
+    </div>
+
+    <div class="participant-avatar w-20 h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 rounded-full bg-white/10 flex items-center justify-center font-bold text-xl md:text-2xl lg:text-4xl text-white border-2 border-white/20 relative z-10 transition-transform duration-500 group-hover:scale-110 shadow-[0_0_50px_rgba(0,0,0,0.5)] aspect-square ${data.isSharing ? 'hidden' : ''}">
+      ${data.profilePic ? `<img src="${data.profilePic}" class="w-full h-full object-cover rounded-full aspect-square">` : getInitials(data.userName)}
+      <div class="speaking-ring absolute inset-0 rounded-full border-4 border-white/40 ${data.isSpeaking ? '' : 'hidden'}"></div>
+    </div>
+    
+    <video class="participant-screen absolute inset-0 w-full h-full object-contain bg-black ${data.isSharing ? '' : 'hidden'} z-20" autoplay playsinline muted></video>
+
+    <button class="expand-screen-btn absolute top-2 left-2 z-40 w-7 h-7 bg-black/60 hover:bg-white hover:text-black rounded-lg border border-white/10 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 ${data.isSharing ? '' : 'hidden'}">
+      <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
+    </button>
+    
+    <div class="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent opacity-50"></div>
+
+    <div class="absolute bottom-2 left-2 right-2 md:bottom-4 md:left-4 md:right-4 z-30 flex items-center justify-between pointer-events-none">
+      <div class="flex flex-col gap-0 max-w-[70%] md:max-w-none">
+        <div class="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-0.5 md:px-2 md:py-1 rounded-full border border-white/5 w-fit">
+          <span class="participant-name font-bold text-[9px] md:text-xs text-white truncate max-w-[50px] md:max-w-none">${data.userName}</span>
+          ${isMe ? '<span class="text-[6px] md:text-[7px] bg-white text-black px-1 py-0 rounded-md font-black uppercase shrink-0">أنت</span>' : ''}
+        </div>
+        ${data.specialty ? `<span class="participant-specialty text-[7px] md:text-[9px] text-brand-muted px-2 truncate">${data.specialty}</span>` : ''}
+      </div>
+
+      <div class="flex items-center gap-1">
+        <span class="mute-indicator ${data.isMuted ? '' : 'hidden'} w-5 h-5 md:w-6 md:h-6 bg-red-500/20 backdrop-blur-md border border-red-500/30 rounded-full flex items-center justify-center text-red-500 shadow-lg">
+          <i data-lucide="mic-off" class="w-2.5 h-2.5 md:w-3 md:h-3"></i>
+        </span>
+        <span class="sharing-indicator ${data.isSharing ? '' : 'hidden'} w-5 h-5 md:w-6 md:h-6 bg-green-500/20 backdrop-blur-md border border-green-500/30 rounded-full flex items-center justify-center text-green-500 shadow-lg">
+          <i data-lucide="monitor" class="w-2.5 h-2.5 md:w-3 md:h-3"></i>
+        </span>
+      </div>
+    </div>
+  `;
+
+    participantsGrid.appendChild(tile);
+
+    // ربط الستريم إذا كان متاحاً (خاصة عند إعادة الرندر بسبب التنقل بين الصفحات)
+    if (data.isSharing && data.screenStream) {
+        const video = tile.querySelector('.participant-screen');
+        if (video) {
+            video.srcObject = data.screenStream;
+            video.play().catch(() => { });
+        }
+    }
+
+    const expandBtn = tile.querySelector('.expand-screen-btn');
+    expandBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const video = tile.querySelector('.participant-screen');
+        if (video && video.srcObject) {
+            expandScreenView(video.srcObject, data.userName);
         }
     });
+}
+
+/** رندر كارد "المزيد" */
+function renderMoreCard(remainingCount) {
+    const tile = document.createElement('div');
+    tile.className = "participant-tile relative aspect-video bg-brand-border/20 border border-brand-border rounded-3xl flex flex-col items-center justify-center animate-scale-in group overflow-hidden shadow-2xl transition-all duration-500 hover:bg-brand-border/40 cursor-pointer";
+
+    tile.innerHTML = `
+        <div class="text-4xl font-black text-white">+${remainingCount}</div>
+        <div class="text-xs font-bold text-brand-muted mt-2">عضو إضافي</div>
+    `;
+
+    tile.addEventListener('click', () => {
+        currentPage++;
+        updateParticipantCount();
+    });
+
+    participantsGrid.appendChild(tile);
 }
 
 // تحديث التنسيق عند تغيير حجم المتصفح
@@ -188,74 +382,22 @@ function getInitials(name) {
 
 /** إضافة مشارك جديد للقائمة (شبكة) */
 function addParticipantCard(socketId, data, isMe = false) {
-    // تجنب التكرار إذا كان موجوداً بالفعل
     if (participants[socketId]) return;
-
-    participants[socketId] = { ...data, isMe, isMuted: false, isSharing: false };
-
-    const tile = document.createElement('div');
-    tile.className = `participant-tile relative aspect-video bg-brand-card border border-brand-border rounded-[2.5rem] flex flex-col items-center justify-center animate-scale-in group overflow-hidden shadow-2xl transition-all duration-300 ${isMe ? 'ring-1 ring-white/10' : ''}`;
-    tile.id = `card-${socketId}`;
-    
-    // صورة رمزية أو أحرف (دائرة كبيرة في المنتصف)
-    tile.innerHTML = `
-    <div class="participant-avatar w-24 h-24 md:w-32 md:h-32 rounded-full bg-white/5 flex items-center justify-center font-bold text-3xl md:text-4xl text-white border-2 border-brand-border relative z-10 transition-transform duration-500 group-hover:scale-105">
-      ${getInitials(data.userName)}
-      <div class="speaking-ring absolute inset-0 rounded-full border-4 border-white/40 hidden"></div>
-    </div>
-    
-    <!-- خلفية خفيفة متدرجة -->
-    <div class="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent opacity-50"></div>
-
-    <!-- اسم المشارك في الأسفل -->
-    <div class="absolute bottom-6 left-6 right-6 z-20 flex items-center justify-between">
-      <div class="flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/5">
-        <span class="participant-name font-bold text-xs md:text-sm text-white truncate max-w-[100px] md:max-w-none">${data.userName}</span>
-        ${isMe ? '<span class="text-[8px] bg-white text-black px-1.5 py-0.5 rounded-lg font-black uppercase">أنت</span>' : ''}
-      </div>
-
-      <div class="flex items-center gap-2">
-        <span class="mute-indicator hidden w-8 h-8 bg-red-500/20 backdrop-blur-md border border-red-500/30 rounded-full flex items-center justify-center text-red-500 shadow-lg">
-          <i data-lucide="mic-off" class="w-4 h-4"></i>
-        </span>
-        <span class="sharing-indicator hidden w-8 h-8 bg-green-500/20 backdrop-blur-md border border-green-500/30 rounded-full flex items-center justify-center text-green-500 shadow-lg">
-          <i data-lucide="monitor" class="w-4 h-4"></i>
-        </span>
-      </div>
-    </div>
-  `;
-
-    participantsGrid.appendChild(tile);
-    lucide.createIcons();
+    participants[socketId] = { ...data, isMe, isMuted: false, isSharing: false, isSpeaking: false };
     updateParticipantCount();
 }
 
 /** إزالة مشارك من القائمة */
 function removeParticipantCard(socketId) {
-    const card = document.getElementById(`card-${socketId}`);
-    if (card) {
-        card.style.transform = 'scale(0)';
-        card.style.opacity = '0';
-        card.style.transition = 'all 0.3s ease';
-        setTimeout(() => card.remove(), 300);
-    }
     delete participants[socketId];
     updateParticipantCount();
 }
 
 /** تحديث حالة مشاركة الشاشة لمشارك */
 function updateParticipantScreenState(socketId, isShareState) {
-    const card = document.getElementById(`card-${socketId}`);
-    if (!card) return;
-    
-    const indicator = card.querySelector('.sharing-indicator');
-    if (indicator) {
-        if (isShareState) indicator.classList.remove('hidden');
-        else indicator.classList.add('hidden');
-    }
-
     if (participants[socketId]) {
         participants[socketId].isSharing = isShareState;
+        updateParticipantCount();
     }
 }
 
@@ -273,10 +415,10 @@ async function getLocalAudio() {
             },
             video: false,
         });
-        
+
         // إعداد مراقبة مستوى الصوت
         startAudioLevelDetection();
-        
+
         return true;
     } catch (err) {
         console.error('خطأ في الوصول للميكروفون:', err);
@@ -307,10 +449,10 @@ function startAudioLevelDetection() {
         microphone = audioContext.createMediaStreamSource(localStream);
         microphone.connect(analyser);
         analyser.fftSize = 512;
-        
+
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
-        
+
         let wasSpeaking = false;
 
         speechInterval = setInterval(() => {
@@ -342,16 +484,17 @@ function startAudioLevelDetection() {
 
 /** تفعيل/تعطيل مؤشر التحدث في الواجهة */
 function toggleSpeakingUI(socketId, isSpeaking) {
-    const card = document.getElementById(`card-${socketId}`);
-    if (!card) return;
-    
-    const ring = card.querySelector('.speaking-ring');
-    if (!ring) return;
+    if (participants[socketId]) {
+        participants[socketId].isSpeaking = isSpeaking;
 
-    if (isSpeaking) {
-        ring.classList.remove('hidden');
-    } else {
-        ring.classList.add('hidden');
+        const card = document.getElementById(`card-${socketId}`);
+        if (card) {
+            const ring = card.querySelector('.speaking-ring');
+            if (ring) {
+                if (isSpeaking) ring.classList.remove('hidden');
+                else ring.classList.add('hidden');
+            }
+        }
     }
 }
 
@@ -365,14 +508,14 @@ function toggleSpeakingUI(socketId, isSpeaking) {
  * @param {boolean} initiator - هل هذا المستخدم هو المبادر؟
  * @param {string} remoteUserId - userId للمستخدم البعيد
  * @param {string} remoteUserName - اسم المستخدم البعيد
+ * @param {string} remoteSpecialty - تخصص المستخدم البعيد
+ * @param {string} remoteProfilePic - صورة المستخدم البعيد
  */
-function createPeer(remoteSocketId, initiator, remoteUserId, remoteUserName) {
+function createPeer(remoteSocketId, initiator, remoteUserId, remoteUserName, remoteSpecialty, remoteProfilePic) {
     if (peers[remoteSocketId]) {
-        peers[remoteSocketId].destroy();
+        // إذا كان الاتصال موجوداً بالفعل، لا تدمره إلا في حالة الضرورة القصوى (مثل إعادة التحميل)
+        // لكن هنا، في الغالب نستخدم التبادل لإعادة التفاوض
     }
-
-    const streams = [];
-    if (localStream) streams.push(localStream);
 
     const peer = new SimplePeer({
         initiator,
@@ -386,6 +529,15 @@ function createPeer(remoteSocketId, initiator, remoteUserId, remoteUserName) {
             ],
         },
     });
+
+    // إذا كنا نشارك شاشة بالفعل، أضفها إلى الـ peer الجديد
+    if (isSharing && localScreenTrack) {
+        try {
+            peer.addTrack(localScreenTrack, screenStream);
+        } catch (e) {
+            console.warn('Failed to add track to new peer:', e);
+        }
+    }
 
     // إرسال إشارة للمستخدم البعيد عبر الخادم
     peer.on('signal', (signalData) => {
@@ -411,16 +563,15 @@ function createPeer(remoteSocketId, initiator, remoteUserId, remoteUserName) {
         }
     });
 
-    // استقبال تيار الوسائط من المستخدم البعيد (صوت أو فيديو)
-    peer.on('stream', (stream) => {
+    // استقبال مسار فيديو (مشاركة الشاشة) في حال تأخر الحدث
+    peer.on('track', (track, stream) => {
+        console.log(`📡 مسار جديد (${track.kind}) من: ${remoteUserName}`);
         handleRemoteMedia(stream, remoteSocketId, remoteUserName);
     });
 
-    // استقبال مسار فيديو (مشاركة الشاشة) في حال تأخر الحدث
-    peer.on('track', (track, stream) => {
-        if (track.kind === 'video') {
-            handleRemoteMedia(stream, remoteSocketId, remoteUserName);
-        }
+    // استقبال تيار الوسائط من المستخدم البعيد
+    peer.on('stream', (stream) => {
+        handleRemoteMedia(stream, remoteSocketId, remoteUserName);
     });
 
     peer.on('error', (err) => {
@@ -458,26 +609,49 @@ function handleRemoteMedia(stream, remoteSocketId, remoteUserName) {
     }
 
     // 2. التعامل مع الفيديو (مشاركة الشاشة)
-    if (stream.getVideoTracks().length > 0) {
-        console.log(`🖥️ دفق فيديو (مشاركة شاشة) مكتشف من: ${remoteUserName}`);
-        
-        remoteScreenVideo.srcObject = stream;
-        screenSharerName.textContent = remoteUserName;
-        screenArea.classList.remove('hidden');
-        updateParticipantScreenState(remoteSocketId, true);
+    const videoTracks = stream.getVideoTracks();
+    if (videoTracks.length > 0) {
+        console.log(`🖥️ دفق فيديو (${videoTracks.length} مسار) من: ${remoteUserName}`);
 
-        // التأكد من تشغل الفيديو (مهم ببعض المتصفحات)
-        remoteScreenVideo.play().catch(e => console.warn('تعذر تشغيل الفيديو تلقائياً:', e));
+        const card = document.getElementById(`card-${remoteSocketId}`);
+        if (card) {
+            const video = card.querySelector('.participant-screen');
+            if (video) {
+                if (video.srcObject !== stream) {
+                    video.srcObject = stream;
+                }
 
-        const videoTrack = stream.getVideoTracks()[0];
-        videoTrack.onended = () => {
-            if (remoteScreenVideo.srcObject === stream) {
-                screenArea.classList.add('hidden');
-                remoteScreenVideo.srcObject = null;
-                updateParticipantScreenState(remoteSocketId, false);
+                // حفظ الستريم في بيانات المشارك للتمكن من إعادة ربطه عند الرندر
+                if (participants[remoteSocketId]) {
+                    participants[remoteSocketId].screenStream = stream;
+                }
+
+                // التأكد من تشغيل الفيديو فور تحميله
+                video.muted = true; // فيديو المشاركة صامت دائماً
+                video.play().catch(e => {
+                    console.warn('تعذر تشغيل الفيديو، تجربة التشغيل بعد التفاعل:', e);
+                    // في بعض المتصفحات نحتاج لتفاعل لتشغيل الفيديو
+                });
+
+                updateParticipantScreenState(remoteSocketId, true);
             }
-        };
+        }
+
+        videoTracks.forEach(track => {
+            track.onended = () => {
+                console.log(`🛑 توقف دفق الفيديو من: ${remoteUserName}`);
+                updateParticipantScreenState(remoteSocketId, false);
+            };
+        });
     }
+}
+
+/** عرض الشاشة بشكل مكبّر */
+function expandScreenView(stream, name) {
+    remoteScreenVideo.srcObject = stream;
+    screenSharerName.textContent = name;
+    screenArea.classList.remove('hidden');
+    remoteScreenVideo.play().catch(e => console.warn('تعذر تشغيل الفيديو المكبر:', e));
 }
 
 /** تنظيف اتصال peer محدد */
@@ -500,16 +674,15 @@ socket.on('existing-users', (users) => {
     users.forEach((user) => {
         addParticipantCard(user.socketId, user);
         // إنشاء اتصال peer مع كل مستخدم موجود (نحن المبادرون)
-        createPeer(user.socketId, true, user.userId, user.userName);
+        createPeer(user.socketId, true, user.userId, user.userName, user.specialty, user.profilePic);
     });
 });
 
 /** مستخدم جديد انضم إلى الغرفة */
-socket.on('user-connected', ({ userId, userName, socketId: remoteSocketId }) => {
+socket.on('user-connected', ({ userId, userName, specialty, profilePic, socketId: remoteSocketId }) => {
     showToast(`${userName} انضم إلى الغرفة`, 'success');
-    addParticipantCard(remoteSocketId, { userId, userName });
+    addParticipantCard(remoteSocketId, { userId, userName, specialty, profilePic });
     // المستخدم الجديد هو المبادر، لكننا لسنا كذلك هنا - ننتظر الـ offer
-    // simple-peer سيُنشئ الـ peer غير المبادر عند استقبال offer
 });
 
 /** استقبال Offer */
@@ -518,10 +691,12 @@ socket.on('offer', ({ offer, from }) => {
     const participant = participants[from];
     const remoteUserName = participant ? participant.userName : 'مستخدم';
     const remoteUserId = participant ? participant.userId : from;
-
+    const remoteSpecialty = participant ? participant.specialty : '';
+    const remoteProfilePic = participant ? participant.profilePic : '';
+    
     let peer = peers[from];
     if (!peer) {
-        peer = createPeer(from, false, remoteUserId, remoteUserName);
+        peer = createPeer(from, false, remoteUserId, remoteUserName, remoteSpecialty, remoteProfilePic);
     }
     peer.signal(offer);
 });
@@ -582,25 +757,90 @@ socket.on('peer-toggle-screen', ({ userId, isSharing: shareState }) => {
 // ═══════════════════════════════════════════════════════
 
 async function joinRoom(roomId) {
-    // التأكد من اتصال السوكيت أولاً لضمان توفر socket.id
+    // التأكد من اتصال السوكيت أولاً
     if (!socket.connected) {
-        console.log('⏳ في انتظار اتصال الخادم...');
         await new Promise(resolve => {
             socket.once('connect', resolve);
-            // إذا كان متصلاً بالفعل صدفةً
             if (socket.connected) resolve();
         });
     }
 
     currentRoomId = roomId;
 
+    // طلب معلومات الغرفة (الاسم) من الخادم
+    socket.emit('get-room-info', roomId);
+    socket.once('room-info', (info) => {
+        if (info && info.meetingName) {
+            meetingName = info.meetingName;
+            const displayName = document.getElementById('setup-room-display-name');
+            if (displayName) {
+                displayName.textContent = `انضمام إلى: ${meetingName}`;
+                displayName.classList.remove('hidden');
+            }
+            // تحديث اسم الغرفة في الصفحة الرئيسية إذا لزم الأمر
+            roomIdDisplay.textContent = meetingName;
+        }
+    });
+
+    // إذا كانت البيانات موجودة في الكاش، ننضم مباشرة
+    if (!myUserName) {
+        // إظهار مودال إعداد المستخدم قبل الدخول
+        userSetupModal.classList.remove('hidden');
+        userSetupNameInput.value = '';
+        userSetupNameInput.focus();
+
+        // ننتظر ضغط المستخدم على تأكيد أو تخطي
+        const userData = await new Promise((resolve) => {
+            const handleConfirm = () => {
+                const name = userSetupNameInput.value.trim();
+                const job = userSetupJobInput.value.trim();
+                if (!name) {
+                    showToast('يرجى إدخال اسمك', 'warning');
+                    return;
+                }
+                cleanup();
+                localStorage.setItem('souti_userName', name);
+                localStorage.setItem('souti_userJob', job);
+                resolve({ name, job });
+            };
+
+            const handleSkip = () => {
+                // اسم ضيف عشوائي (ضيف 1، ضيف 2...)
+                // نعتمد على عدد المشاركين الحاليين + 1 كتقدير
+                const guestNum = Object.keys(participants).length + 1;
+                const name = `ضيف ${guestNum}`;
+                const job = 'زائر';
+                cleanup();
+                // لا نحفظ للضيف في localStorage لنجبره على ملء البيانات لاحقاً إذا أراد
+                resolve({ name, job });
+            };
+
+            const cleanup = () => {
+                userSetupConfirmBtn.removeEventListener('click', handleConfirm);
+                userSetupSkipBtn.removeEventListener('click', handleSkip);
+                userSetupModal.classList.add('hidden');
+            };
+
+            userSetupConfirmBtn.addEventListener('click', handleConfirm);
+            userSetupSkipBtn.addEventListener('click', handleSkip);
+
+            // Enter key support
+            userSetupJobInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') handleConfirm();
+            });
+        });
+
+        myUserName = userData.name;
+        mySpecialty = userData.job;
+    }
+
     // إظهار صفحة الغرفة
     homePage.classList.add('hidden');
     roomPage.classList.remove('hidden');
-    roomIdDisplay.textContent = roomId;
+    roomIdDisplay.textContent = meetingName || roomId;
 
     // تحديث عنوان الصفحة
-    document.title = `غرفة ${roomId} | صوتي`;
+    document.title = `${meetingName || roomId} | اجتماع`;
 
     // الحصول على الميكروفون
     const audioOk = await getLocalAudio();
@@ -608,14 +848,22 @@ async function joinRoom(roomId) {
         showToast('سيتم الانضمام بدون صوت', 'warning');
     }
 
-    // إضافة نفسنا للقائمة (الآن نضمن أن socket.id موجود)
-    addParticipantCard(socket.id, { userId: myUserId, userName: myUserName }, true);
+    // إضافة نفسنا للقائمة
+    addParticipantCard(socket.id, {
+        userId: myUserId,
+        userName: myUserName,
+        specialty: mySpecialty,
+        profilePic: myProfilePic
+    }, true);
 
     // إرسال طلب الانضمام للخادم
     socket.emit('join-room', {
         roomId,
         userId: myUserId,
         userName: myUserName,
+        specialty: mySpecialty,
+        profilePic: myProfilePic,
+        meetingName: meetingName // اختياري: لإخطار الآخرين باسم الغرفة إذا أردنا
     });
 
     lucide.createIcons();
@@ -660,10 +908,16 @@ async function startScreenShare() {
 
         showToast('بدأت مشاركة الشاشة', 'success');
 
-        // ── عرض الشاشة المشتركة للشخص نفسه ──
-        remoteScreenVideo.srcObject = screenStream;
-        screenSharerName.textContent = 'أنت';
-        screenArea.classList.remove('hidden');
+        // ── عرض الشاشة المشتركة للشخص نفسه داخل الكارد ──
+        const myCard = document.getElementById(`card-${socket.id}`);
+        if (myCard) {
+            const video = myCard.querySelector('.participant-screen');
+            if (video) {
+                video.srcObject = screenStream;
+                video.onloadedmetadata = () => video.play().catch(() => { });
+                updateParticipantScreenState(socket.id, true);
+            }
+        }
 
         // عند إيقاف المشاركة من المتصفح
         localScreenTrack.onended = () => {
@@ -687,6 +941,9 @@ function stopScreenShare() {
     // إيقاف المسار
     if (localScreenTrack) {
         localScreenTrack.stop();
+        if (participants[socket.id]) {
+            participants[socket.id].screenStream = null;
+        }
 
         // إزالة المسار من جميع الـ peers
         Object.values(peers).forEach((peer) => {
@@ -704,11 +961,9 @@ function stopScreenShare() {
     }
 
     // ── إخفاء الفيديو المحلي للشاشة ──
-    if (remoteScreenVideo.srcObject === screenStream || screenSharerName.textContent === 'أنت') {
-        remoteScreenVideo.srcObject = null;
-        screenArea.classList.add('hidden');
-    }
+    updateParticipantScreenState(socket.id, false);
 
+    // تحديث الواجهة
     // تحديث الواجهة
     screenBtn.setAttribute('data-sharing', 'false');
     screenBtn.classList.remove('bg-white', 'text-black');
@@ -716,7 +971,8 @@ function stopScreenShare() {
     screenBtn.querySelector('.control-label').textContent = 'مشاركة';
     lucide.createIcons();
 
-    // إعلام الخادم
+    isSharing = false;
+
     socket.emit('toggle-screen', {
         roomId: currentRoomId,
         userId: myUserId,
@@ -730,10 +986,29 @@ function stopScreenShare() {
 // إجراءات المستخدم
 // ═══════════════════════════════════════════════════════
 
-/** إنشاء غرفة جديدة */
+/** إنشاء غرفة جديدة - إظهار مودال اسم الميت */
 createRoomBtn.addEventListener('click', () => {
+    setupRoomModal.classList.remove('hidden');
+    setupRoomNameInput.focus();
+});
+
+/** تأكيد اسم الغرفة والبدء */
+setupRoomConfirmBtn.addEventListener('click', () => {
+    const name = setupRoomNameInput.value.trim();
+    if (!name) {
+        showToast('يرجى إدخال اسم للاجتماع', 'warning');
+        return;
+    }
+    meetingName = name;
+    setupRoomModal.classList.add('hidden');
+
+    // إنشاء المعرف والانتقال لمودال البيانات الشخصية
     const roomId = generateRoomId();
     window.history.pushState({}, '', `/room/${roomId}`);
+    
+    // إرسال بيانات الغرفة للخادم فوراً ليحفظ الاسم
+    socket.emit('create-room', { roomId, meetingName });
+    
     joinRoom(roomId);
 });
 
@@ -747,13 +1022,11 @@ joinBtn.addEventListener('click', () => {
 
     let roomId;
     try {
-        // محاولة استخراج roomId من URL كامل أو من معرف مباشر
         if (input.startsWith('http')) {
             const url = new URL(input);
             const match = url.pathname.match(/\/room\/([a-zA-Z0-9_-]+)/);
             roomId = match ? match[1] : null;
         } else {
-            // إدخال مباشر للمعرف
             roomId = input.replace(/^\/room\//, '');
         }
     } catch {
@@ -769,9 +1042,21 @@ joinBtn.addEventListener('click', () => {
     joinRoom(roomId);
 });
 
+/** الضغط Enter في حقول الإنشاء */
+setupRoomNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') setupRoomConfirmBtn.click();
+});
+
 /** الضغط Enter في حقل الرابط */
 joinLinkInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') joinBtn.click();
+});
+
+/** نسخ رابط الغرفة */
+/** إغلاق العرض المكبر للمشاركة */
+closeScreenBtn.addEventListener('click', () => {
+    screenArea.classList.add('hidden');
+    remoteScreenVideo.srcObject = null;
 });
 
 /** نسخ رابط الغرفة */
@@ -847,7 +1132,7 @@ screenBtn.addEventListener('click', () => {
     }
 });
 
-  /** زر ملء الشاشة */
+/** زر ملء الشاشة */
 fullscreenBtn.addEventListener('click', () => {
     const icon = fullscreenBtn.querySelector('i');
     if (!document.fullscreenElement) {
@@ -931,13 +1216,38 @@ function leaveRoom() {
     // إيقاف اكتشاف الصوت
     if (speechInterval) clearInterval(speechInterval);
     if (audioContext) audioContext.close();
-    
+
     // العودة للصفحة الرئيسية
     window.history.pushState({}, '', '/');
     document.title = 'اجتماع صوتي سريع';
     roomPage.classList.add('hidden');
     homePage.classList.remove('hidden');
 }
+
+// ═══════════════════════════════════════════════════════
+// أزرار التنقل (Pagination)
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('prev-page-btn').addEventListener('click', () => {
+    if (currentPage > 0) {
+        currentPage--;
+        updateParticipantCount();
+    }
+});
+
+document.getElementById('next-page-btn').addEventListener('click', () => {
+    const totalCount = Object.keys(participants).length;
+    const isMobile = window.innerWidth < 768;
+    const currentItemsPerPage = isMobile ? 8 : itemsPerPage;
+    const hasMultiplePages = totalCount > currentItemsPerPage;
+    const itemsToShow = hasMultiplePages ? currentItemsPerPage - 1 : currentItemsPerPage;
+    const totalPages = Math.ceil(totalCount / itemsToShow);
+
+    if (currentPage < totalPages - 1) {
+        currentPage++;
+        updateParticipantCount();
+    }
+});
 
 // ═══════════════════════════════════════════════════════
 // تحميل الصفحة — التحقق من الرابط

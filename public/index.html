@@ -69,6 +69,21 @@
       100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
     }
 
+    * {
+      @apply focus:outline-none;
+      -webkit-tap-highlight-color: transparent;
+      caret-color: transparent;
+    }
+
+    body {
+      @apply select-none;
+    }
+
+    input, textarea, [contenteditable="true"] {
+      @apply select-text;
+      caret-color: white;
+    }
+
     .custom-scrollbar::-webkit-scrollbar {
       width: 5px;
     }
@@ -170,7 +185,7 @@
       <!-- Main Content Area: Participant Grid + Screen Share -->
       <div class="flex-1 flex flex-col p-4 md:p-6 lg:p-8 gap-6 overflow-hidden relative">
         <!-- Participant Grid -->
-        <div id="participants-grid" class="flex-1 grid gap-22 items-center justify-center content-center w-full h-full mx-auto max-w-7xl transition-all duration-500">
+        <div id="participants-grid" class="flex-1 grid gap-3 items-center justify-center content-center w-full h-full mx-auto max-w-7xl transition-all duration-500">
           <!-- Dynamic Grid Tiles -->
         </div>
 
@@ -183,6 +198,10 @@
               <span class="text-[10px] text-brand-muted">يشارك الشاشة</span>
             </div>
 
+            <button id="close-screen-btn" class="absolute top-4 left-4 z-10 w-10 h-10 bg-black/60 hover:bg-red-500 hover:text-white rounded-xl border border-white/10 flex items-center justify-center transition-all group">
+              <i data-lucide="x-circle" class="w-5 h-5"></i>
+            </button>
+
             <button id="fullscreen-btn" class="absolute bottom-4 right-4 z-10 w-10 h-10 bg-black/60 hover:bg-white hover:text-black rounded-xl border border-white/10 flex items-center justify-center transition-all">
               <i id="fullscreen-icon" data-lucide="maximize" class="w-5 h-5"></i>
             </button>
@@ -190,48 +209,124 @@
             <video id="remote-screen-video" autoplay playsinline class="w-full h-full object-contain"></video>
           </div>
         </div>
+
+        <!-- Pagination Controls -->
+        <button id="prev-page-btn" class="hidden absolute left-4 top-1/2 -translate-y-1/2 z-40 w-12 h-12 bg-white/10 hover:bg-white hover:text-black rounded-full border border-white/10 flex items-center justify-center transition-all backdrop-blur-md shadow-2xl active:scale-90">
+          <i data-lucide="chevron-left" class="w-6 h-6"></i>
+        </button>
+        <button id="next-page-btn" class="hidden absolute right-4 top-1/2 -translate-y-1/2 z-40 w-12 h-12 bg-white/10 hover:bg-white hover:text-black rounded-full border border-white/10 flex items-center justify-center transition-all backdrop-blur-md shadow-2xl active:scale-90">
+          <i data-lucide="chevron-right" class="w-6 h-6"></i>
+        </button>
       </div>
 
       <!-- Centered Bottom Controls -->
-      <div class="p-6 flex justify-center fixed bottom-0 inset-x-0 z-50 pointer-events-none">
-        <div class="bg-brand-card/90 backdrop-blur-xl border border-brand-border p-2 px-1 rounded-3xl flex items-center gap-2 shadow-2xl pointer-events-auto">
-          <button id="mute-btn" class="min-w-[4.5rem] h-16 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-all group" data-muted="false">
-            <div class="w-10 h-10 bg-brand-black rounded-xl flex items-center justify-center border border-brand-border transition-all group-hover:border-white/20">
-              <i data-lucide="mic" class="w-5 h-5 control-icon text-white"></i>
-            </div>
-            <span class="text-[10px] font-bold control-label hidden sm:block text-brand-muted">كتم الصوت</span>
-          </button>
+      <div class="p-4 sm:p-6 flex justify-center fixed bottom-0 inset-x-0 z-50 pointer-events-none">
+        <div class="bg-brand-card/90 backdrop-blur-xl border border-brand-border p-2 rounded-3xl flex flex-col sm:flex-row items-center gap-2 shadow-2xl pointer-events-auto">
+          
+          <!-- Tool Buttons Group -->
+          <div class="flex items-center gap-1 sm:gap-2 px-1 sm:px-0">
+            <button id="mute-btn" class="min-w-[3.5rem] sm:min-w-[4.5rem] h-14 sm:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-all group" data-muted="false">
+              <div class="w-9 h-9 sm:w-10 sm:h-10 bg-brand-black rounded-xl flex items-center justify-center border border-brand-border transition-all group-hover:border-white/20">
+                <i data-lucide="mic" class="w-4 h-4 sm:w-5 sm:h-5 control-icon text-white"></i>
+              </div>
+              <span class="text-[9px] sm:text-[10px] font-bold control-label hidden sm:block text-brand-muted">كتم الصوت</span>
+            </button>
 
-          <button id="screen-btn" class="min-w-[4.5rem] h-16 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-all group" data-sharing="false">
-            <div class="w-10 h-10 bg-brand-black rounded-xl flex items-center justify-center border border-brand-border transition-all group-hover:border-white/20">
-              <i data-lucide="monitor" class="w-5 h-5 control-icon text-white"></i>
-            </div>
-            <span class="text-[10px] font-bold control-label hidden sm:block text-brand-muted">مشاركة</span>
-          </button>
+            <button id="screen-btn" class="min-w-[3.5rem] sm:min-w-[4.5rem] h-14 sm:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-all group" data-sharing="false">
+              <div class="w-9 h-9 sm:w-10 sm:h-10 bg-brand-black rounded-xl flex items-center justify-center border border-brand-border transition-all group-hover:border-white/20">
+                <i data-lucide="monitor" class="w-4 h-4 sm:w-5 sm:h-5 control-icon text-white"></i>
+              </div>
+              <span class="text-[9px] sm:text-[10px] font-bold control-label hidden sm:block text-brand-muted">مشاركة</span>
+            </button>
 
-          <div class="h-10 w-px bg-white/10 mx-2"></div>
+            <div class="h-8 sm:h-10 w-px bg-white/10 mx-1 sm:mx-2"></div>
 
-          <button id="copy-link-btn" class="min-w-[4.5rem] h-16 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-all group">
-            <div class="w-10 h-10 bg-brand-black rounded-xl flex items-center justify-center border border-brand-border transition-all group-hover:border-white/20">
-              <i data-lucide="copy" class="w-5 h-5 text-white"></i>
-            </div>
-            <span class="text-[10px] font-bold hidden sm:block text-brand-muted">نسخ</span>
-          </button>
+            <button id="copy-link-btn" class="min-w-[3.5rem] sm:min-w-[4.5rem] h-14 sm:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-all group">
+              <div class="w-9 h-9 sm:w-10 sm:h-10 bg-brand-black rounded-xl flex items-center justify-center border border-brand-border transition-all group-hover:border-white/20">
+                <i data-lucide="copy" class="w-4 h-4 sm:w-5 sm:h-5 text-white"></i>
+              </div>
+              <span class="text-[9px] sm:text-[10px] font-bold hidden sm:block text-brand-muted">نسخ</span>
+            </button>
+          </div>
 
-          <button id="leave-btn" class="px-8 h-16 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-sm font-bold transition-all shadow-lg flex items-center gap-3 active:scale-95 ml-1">
-            <i data-lucide="log-out" class="w-6 h-6 text-white"></i>
+          <!-- Leave Button -->
+          <button id="leave-btn" class="w-full sm:w-auto px-6 sm:px-8 h-12 sm:h-16 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-xs sm:text-sm font-bold transition-all shadow-lg flex items-center justify-center gap-2 sm:gap-3 active:scale-95 sm:ml-1">
+            <i data-lucide="log-out" class="w-5 h-5 sm:w-6 sm:h-6 text-white rotate-180 sm:rotate-0"></i>
             <span>خروج</span>
           </button>
         </div>
       </div>
     </main>
 
-    <div id="audio-container" style="display:none;"></div>
-  </div>
+  <div id="audio-container" style="display:none;"></div>
 
   <!-- Toast Container -->
   <div id="toast-container" class="fixed bottom-[118px] left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center pointer-events-none"></div>
 
+  </div>
+
+  <!-- Modal: Meeting Name (for creator) -->
+  <div id="setup-room-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+    <div class="bg-brand-card/90 border border-brand-border p-8 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-scale-in text-center">
+      <div class="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-500 border border-blue-500/30">
+        <i data-lucide="video" class="w-8 h-8"></i>
+      </div>
+      <h2 class="text-2xl font-black mb-2">تجهيز الغرفة الجديده</h2>
+      <p class="text-brand-muted text-sm mb-8">اكتب اسم مميز لاجتماعك القادم</p>
+      
+      <div class="space-y-4">
+        <div class="relative group">
+          <input type="text" id="setup-room-name" placeholder="مثلاً: اجتماع الفريق الأسبوعي" 
+                 class="w-full h-14 bg-brand-black border border-brand-border rounded-2xl px-6 text-white focus:outline-none focus:border-blue-500 transition-all text-center font-bold">
+        </div>
+        <button id="setup-room-confirm" class="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black transition-all shadow-lg active:scale-95">
+          ابدأ الاجتماع الآن
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: User Profile (for joining) -->
+  <div id="user-setup-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+    <div class="bg-brand-card/90 border border-brand-border p-8 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-scale-in text-center relative overflow-hidden">
+      
+      <!-- Profile Picture Picker -->
+      <div class="relative w-28 h-28 mx-auto mb-6 group cursor-pointer aspect-square" id="profile-pic-container">
+        <div id="profile-preview" class="w-full h-full bg-brand-border/20 rounded-full flex items-center justify-center text-white border-2 border-dashed border-white/20 overflow-hidden transition-all group-hover:border-white/40 group-hover:bg-brand-border/30 aspect-square shadow-2xl">
+          <i data-lucide="camera" class="w-10 h-10 transition-transform group-hover:scale-110"></i>
+        </div>
+        <div class="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+          <span class="text-[10px] font-bold">تغيير الصورة</span>
+        </div>
+        <input type="file" id="profile-upload" accept="image/*" class="hidden">
+      </div>
+
+      <h2 class="text-2xl font-black mb-1">أهلاً بك في الاجتماع</h2>
+      <h3 id="setup-room-display-name" class="text-blue-500 font-bold text-sm mb-2 opacity-80 uppercase tracking-widest hidden"></h3>
+      <p class="text-brand-muted text-sm mb-8">أكمل بياناتك الشخصية للانضمام</p>
+      
+      <div class="space-y-4 text-right" dir="rtl">
+        <div>
+          <label class="block text-xs font-bold text-brand-muted mb-2 mr-2">اسمك الكامل</label>
+          <input type="text" id="user-setup-name" placeholder="أدخل اسمك هنا" autocomplete="off" 
+                 class="w-full h-14 bg-brand-black border border-brand-border rounded-2xl px-6 text-white focus:outline-none focus:border-white/20 transition-all font-bold">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-brand-muted mb-2 mr-2">التخصص أو المسمى الوظيفي</label>
+          <input type="text" id="user-setup-job" placeholder="مثلاً: مصمم واجهات، مبرمج" autocomplete="off" 
+                 class="w-full h-14 bg-brand-black border border-brand-border rounded-2xl px-6 text-white focus:outline-none focus:border-white/20 transition-all font-bold">
+        </div>
+        <div class="pt-2 space-y-3">
+          <button id="user-setup-confirm" class="w-full h-14 bg-white text-black hover:bg-gray-200 rounded-2xl font-black transition-all shadow-lg active:scale-95">
+            حفظ ودخول الاجتماع
+          </button>
+          <button id="user-setup-skip" class="w-full h-14 bg-transparent hover:bg-white/5 text-brand-muted hover:text-white rounded-2xl font-bold transition-all active:scale-95 border border-white/5">
+            تخطى ودخول كضيف
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
   <!-- Modal Error -->
   <div id="error-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
     <div class="max-w-sm w-full bg-brand-card border border-brand-border rounded-3xl p-8 text-center space-y-6 shadow-2xl animate-scale-in">

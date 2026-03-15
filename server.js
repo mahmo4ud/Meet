@@ -24,40 +24,58 @@ io.on('connection', (socket) => {
   console.log(`✅ مستخدم متصل: ${socket.id}`);
 
   // ─── إنشاء غرفة جديدة ───────────────────────────────────────────────────────
-  socket.on('create-room', (roomId) => {
-    rooms.set(roomId, new Map());
-    console.log(`🏠 غرفة جديدة: ${roomId}`);
+  socket.on('create-room', ({ roomId, meetingName }) => {
+    rooms.set(roomId, {
+      meetingName: meetingName || roomId,
+      participants: new Map()
+    });
+    console.log(`🏠 غرفة جديدة: ${roomId} (${meetingName})`);
     socket.emit('room-created', roomId);
   });
 
+  // ─── الحصول على معلومات الغرفة ──────────────────────────────────────────────
+  socket.on('get-room-info', (roomId) => {
+    const room = rooms.get(roomId);
+    if (room) {
+      socket.emit('room-info', { meetingName: room.meetingName });
+    } else {
+      socket.emit('room-info', { meetingName: roomId });
+    }
+  });
+
   // ─── الانضمام إلى غرفة ─────────────────────────────────────────────────────
-  socket.on('join-room', ({ roomId, userId, userName }) => {
+  socket.on('join-room', ({ roomId, userId, userName, specialty, profilePic }) => {
     // إنشاء الغرفة إذا لم تكن موجودة
     if (!rooms.has(roomId)) {
-      rooms.set(roomId, new Map());
+      rooms.set(roomId, {
+        meetingName: roomId,
+        participants: new Map()
+      });
     }
 
-    const room = rooms.get(roomId);
+    const roomData = rooms.get(roomId);
+    const room = roomData.participants;
 
     // الحصول على قائمة المشاركين الموجودين قبل الانضمام
     const existingUsers = Array.from(room.values());
 
-    // إضافة المستخدم الجديد
-    room.set(socket.id, { userId, userName, socketId: socket.id });
+    // إضافة المستخدم الجديد مع التخصص والصورة
+    room.set(socket.id, { userId, userName, specialty, profilePic, socketId: socket.id });
 
     // الانضمام إلى غرفة Socket.io
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.userId = userId;
     socket.data.userName = userName;
+    socket.data.specialty = specialty;
 
-    console.log(`👤 ${userName} انضم إلى الغرفة ${roomId}`);
+    console.log(`👤 ${userName} (${specialty}) انضم إلى الغرفة ${roomId}`);
 
     // إرسال قائمة المشاركين الموجودين للمستخدم الجديد
     socket.emit('existing-users', existingUsers);
 
     // إعلام الأعضاء الآخرين بمستخدم جديد
-    socket.to(roomId).emit('user-connected', { userId, userName, socketId: socket.id });
+    socket.to(roomId).emit('user-connected', { userId, userName, specialty, profilePic, socketId: socket.id });
   });
 
   // ─── إشارات WebRTC ──────────────────────────────────────────────────────────
@@ -108,9 +126,9 @@ io.on('connection', (socket) => {
 
 // دالة مساعدة لمعالجة مغادرة المستخدم
 function handleUserLeave(socket, roomId, userId) {
-  if (!roomId || !rooms.has(roomId)) return;
-
-  const room = rooms.get(roomId);
+  const roomData = rooms.get(roomId);
+  if (!roomData) return;
+  const room = roomData.participants;
   room.delete(socket.id);
 
   // إعلام الأعضاء الآخرين
