@@ -22,7 +22,12 @@ let localScreenTrack = null;   // مسار فيديو الشاشة
 const peers = {};
 
 // معلومات المستخدم الحالي
-const myUserId = generateUserId();
+let myUserId = localStorage.getItem('souti_userId');
+if (!myUserId) {
+    myUserId = generateUserId();
+    localStorage.setItem('souti_userId', myUserId);
+}
+
 let myUserName = localStorage.getItem('souti_userName') || '';
 let mySpecialty = localStorage.getItem('souti_userJob') || ''; // تخصص المستخدم [NEW]
 let myProfilePic = localStorage.getItem('souti_userPic') || ''; // صورة المستخدم [NEW]
@@ -66,6 +71,7 @@ const screenSharerName = document.getElementById('screen-sharer-name');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
 const fullscreenIcon = document.getElementById('fullscreen-icon');
 const errorClose = document.getElementById('error-close-btn');
+const screenSharerAvatar = document.getElementById('screen-sharer-avatar');
 
 // زر إغلاق العرض المكبر [NEW]
 const closeScreenBtn = document.getElementById('close-screen-btn');
@@ -105,8 +111,45 @@ function generateUserName() {
 /** استخراج roomId من URL */
 function getRoomIdFromURL() {
     const path = window.location.pathname;
-    const match = path.match(/^\/room\/([a-zA-Z0-9_-]+)$/);
+    const match = path.match(/^\/room\/([a-zA-Z0-9_-]+)\/?$/);
     return match ? match[1] : null;
+}
+
+/**
+ * ضغط الصورة وتصغير حجمها لضمان سرعة المزامنة
+ * @param {string} base64 - الصورة بصيغة Base64
+ * @param {number} maxWidth - أقصى عرض
+ * @param {number} maxHeight - أقصى ارتفاع
+ * @returns {Promise<string>} - الصورة مضغوطة
+ */
+async function compressImage(base64, maxWidth = 200, maxHeight = 200) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width *= maxHeight / height;
+                    height = maxHeight;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.7)); // جودة 70% بصيغة JPEG
+        };
+    });
 }
 
 /** توليد roomId عشوائي */
@@ -118,12 +161,14 @@ function generateRoomId() {
 if (profilePicContainer) {
     profilePicContainer.addEventListener('click', () => profileUpload.click());
 
-    profileUpload.addEventListener('change', (e) => {
+    profileUpload.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (event) => {
-                myProfilePic = event.target.result;
+            reader.onload = async (event) => {
+                const originalBase64 = event.target.result;
+                // ضغط الصورة قبل حفظها أو إرسالها
+                myProfilePic = await compressImage(originalBase64);
                 profilePreview.innerHTML = `<img src="${myProfilePic}" class="w-full h-full object-cover rounded-full aspect-square shadow-xl">`;
                 localStorage.setItem('souti_userPic', myProfilePic);
             };
@@ -343,7 +388,7 @@ function renderParticipantTile(socketId, data, isMe = false) {
         e.stopPropagation();
         const video = tile.querySelector('.participant-screen');
         if (video && video.srcObject) {
-            expandScreenView(video.srcObject, data.userName);
+            expandScreenView(video.srcObject, data.userName, data.profilePic);
         }
     });
 }
@@ -647,9 +692,19 @@ function handleRemoteMedia(stream, remoteSocketId, remoteUserName) {
 }
 
 /** عرض الشاشة بشكل مكبّر */
-function expandScreenView(stream, name) {
+function expandScreenView(stream, name, profilePic) {
     remoteScreenVideo.srcObject = stream;
     screenSharerName.textContent = name;
+    
+    // تحديث صورة الشخص الذي يشارك الشاشة
+    if (screenSharerAvatar) {
+        if (profilePic) {
+            screenSharerAvatar.innerHTML = `<img src="${profilePic}" class="w-full h-full object-cover">`;
+        } else {
+            screenSharerAvatar.innerHTML = `<div class="bg-white/10 w-full h-full flex items-center justify-center">${getInitials(name)}</div>`;
+        }
+    }
+
     screenArea.classList.remove('hidden');
     remoteScreenVideo.play().catch(e => console.warn('تعذر تشغيل الفيديو المكبر:', e));
 }
@@ -806,12 +861,15 @@ async function joinRoom(roomId) {
 
             const handleSkip = () => {
                 // اسم ضيف عشوائي (ضيف 1، ضيف 2...)
-                // نعتمد على عدد المشاركين الحاليين + 1 كتقدير
-                const guestNum = Object.keys(participants).length + 1;
+                const guestNum = Math.floor(Math.random() * 1000);
                 const name = `ضيف ${guestNum}`;
                 const job = 'زائر';
                 cleanup();
-                // لا نحفظ للضيف في localStorage لنجبره على ملء البيانات لاحقاً إذا أراد
+                
+                // حفظ للضيف في localStorage ليتخطى المودال عند الريفرش
+                localStorage.setItem('souti_userName', name);
+                localStorage.setItem('souti_userJob', job);
+                
                 resolve({ name, job });
             };
 

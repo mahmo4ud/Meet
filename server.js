@@ -5,7 +5,9 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  maxHttpBufferSize: 1e7 // 10MB (increased to handle larger profile pictures)
+});
 
 const PORT = process.env.PORT || 3000;
 
