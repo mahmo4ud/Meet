@@ -91,18 +91,18 @@
 
   <!-- الصفحة الرئيسية -->
   <div id="home-page" class="page min-h-screen flex flex-col">
-    <header class="p-6 md:p-8 flex justify-between items-center max-w-7xl mx-auto w-full">
+    <header class="p-4 md:p-8 flex justify-between items-center max-w-7xl mx-auto w-full">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.1)]">
           <i data-lucide="mic" class="text-black"></i>
         </div>
         <span class="text-xl font-bold tracking-tight">صوتي</span>
       </div>
-      <div class="hidden md:flex items-center gap-6 text-sm text-brand-muted">
+      <!-- <div class="hidden md:flex items-center gap-6 text-sm text-brand-muted">
         <a href="#" class="hover:text-white transition-colors">عن الخدمة</a>
         <a href="#" class="hover:text-white transition-colors">الأمان</a>
         <a href="#" class="hover:text-white transition-colors">المساعدة</a>
-      </div>
+      </div> -->
     </header>
 
     <main class="flex-1 flex items-center justify-center p-6">
@@ -131,16 +131,16 @@
             <div class="flex-1 h-px bg-brand-border"></div>
           </div>
 
-          <div class="flex gap-2">
-            <input id="join-link-input" type="text" class="flex-1 bg-brand-black border border-brand-border rounded-2xl px-5 py-4 text-sm outline-none focus:border-white transition-all placeholder:text-brand-muted" placeholder="الصق رابط الغرفة هنا..." autocomplete="off" />
-            <button id="join-btn" class="px-8 bg-brand-border hover:bg-white hover:text-black rounded-2xl font-bold transition-all flex items-center gap-2">
+          <div class="flex flex-col sm:flex-row gap-3">
+            <input id="join-link-input" type="text" class="flex-1 bg-brand-black border border-brand-border rounded-2xl px-5 py-4 text-sm outline-none focus:border-white transition-all placeholder:text-brand-muted" placeholder="الصق رابط الغرفة أو معرف الغرفة هنا..." autocomplete="off" />
+            <button id="join-btn" class="w-full sm:w-auto px-8 py-4 sm:py-0 bg-brand-border hover:bg-white hover:text-black rounded-2xl font-bold transition-all flex items-center justify-center gap-2">
               <i data-lucide="arrow-right"></i>
               انضمام
             </button>
           </div>
         </div>
 
-        <div class="flex flex-wrap justify-center gap-4 text-xs text-brand-muted font-medium">
+        <div class="flex flex-wrap justify-center gap-x-6 gap-y-3 text-xs text-brand-muted font-medium">
           <div class="flex items-center gap-1.5"><i data-lucide="shield-check" class="w-4 h-4"></i> تشفير كامل</div>
           <div class="flex items-center gap-1.5"><i data-lucide="monitor" class="w-4 h-4"></i> مشاركة الشاشة</div>
           <div class="flex items-center gap-1.5"><i data-lucide="user-check" class="w-4 h-4"></i> بدون بيانات</div>
@@ -176,9 +176,9 @@
       </div>
     </header>
 
-    <main class="flex-1 flex flex-col lg:flex-row max-w-7xl mx-auto w-full p-4 lg:p-6 gap-6 overflow-hidden">
+    <main class="flex-1 flex flex-col max-w-7xl mx-auto w-full p-4 lg:p-6 gap-6 overflow-hidden">
       <!-- المنطقة اليسرى: منطقة الشاشة المشتركة -->
-      <div id="screen-area" class="hidden flex-1 bg-black rounded-3xl border border-brand-border relative overflow-hidden flex items-center justify-center animate-scale-in">
+      <div id="screen-area" style="height: fit-content;" class="hidden flex-1 bg-black rounded-3xl border border-brand-border relative overflow-hidden flex items-center justify-center animate-scale-in">
         <div class="absolute top-4 right-4 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
           <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
           <span id="screen-sharer-name" class="text-xs font-bold"></span>
