@@ -617,6 +617,8 @@ async function startScreenShare() {
     } catch (err) {
         if (err.name === 'NotAllowedError') {
             showToast('تم إلغاء مشاركة الشاشة', 'info');
+        } else if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+            showError('مشاركة الشاشة غير مدعومة', 'عذراً، متصفحك أو جهازك لا يدعم مشاركة الشاشة. هذه الخاصية تتطلب عادةً متصفحاً على جهاز كمبيوتر.');
         } else {
             showError('خطأ في مشاركة الشاشة', err.message);
         }
